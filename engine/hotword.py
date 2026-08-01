@@ -18,7 +18,13 @@ except ImportError:
     sr = None
 
 # ── Config ─────────────────────────────────────────────────────────────────────
-WAKE_WORDS = ["wake jarvis", "hey jarvis", "jarvis", "ok jarvis"]
+WAKE_WORDS = [
+    "wake up jarvis", "wakeup jarvis", "wake jarvis", 
+    "hey jarvis", "jarvis", "ok jarvis", "hi jarvis", 
+    "hello jarvis", "activate jarvis", "jarvish", "jarves", 
+    "javis", "wake up jarvish", "wakeup jarvish", "wake jarvish",
+    "hey jarvish", "ok jarvish", "hi jarvish"
+]
 JARVIS_URL = "http://localhost:8000/index.html"
 
 # Global state
@@ -43,11 +49,53 @@ def _play_activation_sound():
         pass   # non-Windows or winsound unavailable
 
 
-def _open_jarvis_browser():
-    """Open Jarvis in the default browser."""
+EDGE_PATH = r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
+CHROME_PATH = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
+if not os.path.exists(CHROME_PATH):
+    CHROME_PATH = r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"
+
+import ctypes
+
+def _bring_jarvis_to_front():
+    """Force the Jarvis window to top of desktop screen using Win32 API."""
+    if os.name != 'nt':
+        return
     try:
-        webbrowser.open(JARVIS_URL)
-        print(f"[HOTWORD] Opened Jarvis at {JARVIS_URL}")
+        user32 = ctypes.windll.user32
+
+        def enum_windows_callback(hwnd, extra):
+            length = user32.GetWindowTextLengthW(hwnd)
+            if length > 0:
+                buff = ctypes.create_unicode_buffer(length + 1)
+                user32.GetWindowTextW(hwnd, buff, length + 1)
+                title = buff.value.lower()
+                if "jarvis" in title or "localhost:8000" in title or "127.0.0.1:8000" in title:
+                    user32.ShowWindow(hwnd, 9)  # SW_RESTORE
+                    user32.ShowWindow(hwnd, 5)  # SW_SHOW
+                    fg_thread = user32.GetWindowThreadProcessId(user32.GetForegroundWindow(), None)
+                    target_thread = user32.GetWindowThreadProcessId(hwnd, None)
+                    if fg_thread and target_thread and fg_thread != target_thread:
+                        user32.AttachThreadInput(fg_thread, target_thread, True)
+                        user32.SetForegroundWindow(hwnd)
+                        user32.BringWindowToTop(hwnd)
+                        user32.AttachThreadInput(fg_thread, target_thread, False)
+                    else:
+                        user32.SetForegroundWindow(hwnd)
+                        user32.BringWindowToTop(hwnd)
+                    return False
+            return True
+
+        WNDENUMPROC = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_int, ctypes.c_int)
+        user32.EnumWindows(WNDENUMPROC(enum_windows_callback), 0)
+    except Exception as e:
+        print(f"[HOTWORD] Win32 focus error: {e}")
+
+def _open_jarvis_browser():
+    """Open Jarvis window on the active desktop screen."""
+    try:
+        from engine.window_manager import show_jarvis_window
+        show_jarvis_window(JARVIS_URL)
+        print(f"[HOTWORD] Opened & focused Jarvis at {JARVIS_URL}")
     except Exception as e:
         print(f"[HOTWORD] Browser open failed: {e}")
 
@@ -57,13 +105,16 @@ def _contains_wake_word(text: str) -> bool:
     for ww in WAKE_WORDS:
         if ww in text:
             return True
+    words = text.split()
+    for w in words:
+        if any(target in w for target in ["jarvis", "jarvish", "jarves", "javis"]):
+            return True
     return False
 
 
 def _listen_for_wake_word():
     """
-    Continuously listens for the wake word using the microphone.
-    Uses short 3-second windows to keep it responsive.
+    Continuously listens for the wake word using the microphone stream.
     """
     global _jarvis_active
 
@@ -72,45 +123,44 @@ def _listen_for_wake_word():
         return
 
     recognizer = sr.Recognizer()
-    recognizer.energy_threshold          = 300
-    recognizer.dynamic_energy_threshold  = True
-    recognizer.pause_threshold           = 0.6
+    recognizer.energy_threshold          = 100
+    recognizer.dynamic_energy_threshold  = False
+    recognizer.pause_threshold           = 0.5
 
-    print("[HOTWORD] Listening for wake word... (say 'hey jarvis' or 'wake jarvis')")
+    print("[HOTWORD] Listening for wake word... (say 'hey jarvis' or 'wakeup jarvis')")
 
-    while _listening:
-        try:
-            with sr.Microphone() as source:
-                recognizer.adjust_for_ambient_noise(source, duration=0.3)
-                audio = recognizer.listen(source, timeout=3, phrase_time_limit=4)
+    try:
+        with sr.Microphone() as source:
+            recognizer.adjust_for_ambient_noise(source, duration=0.5)
+            while _listening:
+                try:
+                    audio = recognizer.listen(source, timeout=5, phrase_time_limit=5)
+                    try:
+                        text = recognizer.recognize_google(audio, language="en-US")
+                        print(f"[HOTWORD] Heard: {text}")
 
-            try:
-                text = recognizer.recognize_google(audio, language="en-in")
-                print(f"[HOTWORD] Heard: {text}")
+                        if _contains_wake_word(text):
+                            print("[HOTWORD] Wake word detected!")
+                            _play_activation_sound()
+                            _open_jarvis_browser()
+                            _jarvis_active = True
+                            time.sleep(0.5)
+                            _handle_post_wake()
 
-                if _contains_wake_word(text):
-                    print("[HOTWORD] Wake word detected!")
-                    _play_activation_sound()
-                    _open_jarvis_browser()
-                    _jarvis_active = True
-                    # Give Jarvis time to load, then start listening for commands
-                    time.sleep(3)
-                    _handle_post_wake()
-
-            except sr.UnknownValueError:
-                pass   # silence / unrecognised — keep looping
-            except sr.RequestError as e:
-                print(f"[HOTWORD] Google API error: {e}")
-                time.sleep(5)
-
-        except sr.WaitTimeoutError:
-            pass   # no speech in 3s, keep looping
-        except OSError as e:
-            print(f"[HOTWORD] Mic error: {e}")
-            time.sleep(2)
-        except Exception as e:
-            print(f"[HOTWORD] Unexpected: {e}")
-            time.sleep(1)
+                    except sr.UnknownValueError:
+                        pass   # silence / unrecognised — keep looping
+                    except sr.RequestError as e:
+                        print(f"[HOTWORD] Google API error: {e}")
+                        time.sleep(2)
+                except sr.WaitTimeoutError:
+                    pass   # no speech in window, keep listening continuously
+                except Exception as e:
+                    print(f"[HOTWORD] Inner audio error: {e}")
+                    time.sleep(0.3)
+    except OSError as e:
+        print(f"[HOTWORD] Microphone access error: {e}")
+    except Exception as e:
+        print(f"[HOTWORD] Hotword thread error: {e}")
 
 
 def _handle_post_wake():

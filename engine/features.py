@@ -68,44 +68,69 @@ if eel is not None:
     eel.expose(playAssistantSound)
 
 
-def openCommand(query):
-    query = query.replace(ASSISTANT_NAME, "")
-    query = query.replace("open", "")
-    query = query.lower().strip()
-    app_name = query
+EDGE_PATH = r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
 
-    if not app_name:
+def _open_in_browser(url):
+    if os.path.exists(EDGE_PATH):
+        subprocess.Popen([EDGE_PATH, url])
+    else:
+        webbrowser.open(url)
+
+def openCommand(query):
+    query = query.replace(ASSISTANT_NAME, "").strip()
+    if query.lower().startswith("open "):
+        target = query[5:].strip()
+    elif query.lower() == "open":
+        return
+    else:
+        target = query.replace("open", "").strip()
+
+    if not target:
         return
 
+    app_name = target.lower()
+
+    # 1. Check local system commands database table
     con, cursor = _get_cursor()
     try:
         cursor.execute(
             "SELECT path FROM sys_command WHERE LOWER(name) = ?", (app_name,)
         )
         results = cursor.fetchall()
-
         if results:
-            speak("Opening " + app_name)
+            speak("Opening " + target)
             os.startfile(results[0][0])
             return
 
+        # 2. Check registered web commands database table
         cursor.execute(
             "SELECT url FROM web_command WHERE LOWER(name) = ?", (app_name,)
         )
         results = cursor.fetchall()
-
         if results:
-            speak("Opening " + app_name)
-            webbrowser.open(results[0][0])
+            speak("Opening " + target)
+            _open_in_browser(results[0][0])
             return
-
-        speak("Opening " + app_name)
-        # Safe: no shell=True, app_name passed as separate argument
-        subprocess.Popen(["cmd", "/c", "start", "", app_name], shell=False)
-    except Exception:
-        speak("Something went wrong")
+    except Exception as e:
+        print(f"[openCommand DB error]: {e}")
     finally:
         con.close()
+
+    speak("Opening " + target)
+
+    # 3. If explicit domain or URL given (e.g. github.com, python.org, openai.com)
+    if any(app_name.endswith(tld) for tld in [".com", ".org", ".net", ".io", ".in", ".ai", ".co", ".gov", ".edu", ".dev"]):
+        url = app_name if app_name.startswith("http") else f"https://{app_name}"
+        _open_in_browser(url)
+        return
+
+    # 4. Single-word website name (e.g. flipkart, wikipedia, canva, reddit, hotstar, netflix)
+    if " " not in app_name:
+        _open_in_browser(f"https://www.{app_name}.com")
+        return
+
+    # 5. Multi-word targets (e.g. "google maps", "prime video", "stack overflow") -> Search & launch on Google
+    _open_in_browser(f"https://www.google.com/search?q={quote(target)}")
 
 
 def PlayYoutube(query):

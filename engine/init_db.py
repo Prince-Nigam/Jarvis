@@ -58,6 +58,15 @@ def init_database():
         ("youtube", "https://www.youtube.com/"),
         ("whatsapp", "https://web.whatsapp.com/"),
         ("google", "https://www.google.com/"),
+        ("instagram", "https://www.instagram.com/"),
+        ("facebook", "https://www.facebook.com/"),
+        ("twitter", "https://x.com/"),
+        ("github", "https://github.com/"),
+        ("gmail", "https://mail.google.com/"),
+        ("chatgpt", "https://chatgpt.com/"),
+        ("spotify", "https://open.spotify.com/"),
+        ("linkedin", "https://www.linkedin.com/"),
+        ("reddit", "https://www.reddit.com/"),
     ]
     for name, url in defaults:
         cursor.execute("SELECT 1 FROM web_command WHERE name = ?", (name,))

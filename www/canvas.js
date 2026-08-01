@@ -71,9 +71,9 @@ function canvasApp() {
 		count = wait - 1;
 		numToAddEachFrame = 8;
 
-		//particle color
+		// particle color — Neon Cyan & Electric Blue
 		r = 0;
-		g = 72;
+		g = 230;
 		b = 255;
 
 		rgbString = "rgba(" + r + "," + g + "," + b + ","; //partial string for color which will be completed by appending alpha value.

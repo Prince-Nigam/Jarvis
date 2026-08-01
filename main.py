@@ -75,6 +75,30 @@ def api_command():
         print(f"[command error] {e}")
         return jsonify({"ok": False, "error": str(e), "response": "Something went wrong."})
 
+# ── Greet API ──────────────────────────────────────────────────────────────────
+@app.route("/api/greet", methods=["POST"])
+def api_greet():
+    try:
+        from engine.features import playAssistantSound
+        from engine.command import speak
+        from datetime import datetime
+
+        playAssistantSound()
+
+        hour = datetime.now().hour
+        if hour < 12:
+            greet = "Good morning Sir. Jarvis at your service. All systems operational."
+        elif hour < 17:
+            greet = "Good afternoon Sir. Jarvis at your service. All systems operational."
+        else:
+            greet = "Good evening Sir. Jarvis at your service. All systems operational."
+
+        speak(greet)
+        return jsonify({"ok": True, "message": greet})
+    except Exception as e:
+        print(f"[greet error] {e}")
+        return jsonify({"ok": False, "error": str(e)})
+
 # ── Listen API — runs mic in thread, returns within timeout ────────────────────
 @app.route("/api/listen", methods=["POST"])
 def api_listen():
@@ -128,7 +152,8 @@ def _find_free_port(start=8000):
 
 def _open_browser(port):
     try:
-        webbrowser.open(f"http://localhost:{port}/index.html")
+        from engine.window_manager import show_jarvis_window
+        show_jarvis_window(f"http://localhost:{port}/index.html")
     except Exception as e:
         print(f"[browser] {e}")
 
