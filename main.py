@@ -1,10 +1,13 @@
 """
-Jarvis main entry point.
-Uses Flask to serve the frontend and expose Python functions via JSON API.
-(Replaces eel/gevent which requires native DLLs blocked by Windows policy)
+Jarvis main entry point — Flask REST API backend.
+Fixes applied:
+  - /api/listen uses a dedicated thread with a queue so it doesn't
+    block Flask's request thread beyond a timeout
+  - /api/speak removed (speak() is called inside run_command directly)
+  - Unused json import removed
 """
-import json
 import os
+import queue
 import socket
 import subprocess
 import sys
@@ -18,12 +21,12 @@ from engine.auth import Recognize
 from engine.init_db import init_database
 import engine.system_info as sysinfo
 
-# ── App setup ─────────────────────────────────────────────────────────────────
+# ── App setup ──────────────────────────────────────────────────────────────────
 WWW_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "www")
 app = Flask(__name__, static_folder=WWW_DIR)
 CORS(app)
 
-# ── Serve frontend ────────────────────────────────────────────────────────────
+# ── Frontend ───────────────────────────────────────────────────────────────────
 @app.route("/")
 @app.route("/index.html")
 def index():
@@ -33,7 +36,7 @@ def index():
 def static_files(filename):
     return send_from_directory(WWW_DIR, filename)
 
-# ── System stats API ──────────────────────────────────────────────────────────
+# ── System stats ───────────────────────────────────────────────────────────────
 @app.route("/api/system_stats")
 def api_system_stats():
     return jsonify(sysinfo.getSystemStats())
@@ -57,56 +60,61 @@ def api_open_explorer():
     data = request.get_json(silent=True) or {}
     return jsonify(sysinfo.openInExplorer(data.get("path", "")))
 
-# ── Voice / command API ───────────────────────────────────────────────────────
-@app.route("/api/speak", methods=["POST"])
-def api_speak():
-    data = request.get_json(silent=True) or {}
-    text = data.get("text", "")
-    if text:
-        threading.Thread(target=_speak_bg, args=(text,), daemon=True).start()
-    return jsonify({"ok": True})
-
-def _speak_bg(text):
-    try:
-        from engine.command import speak
-        speak(text)
-    except Exception as e:
-        print(f"[speak] {e}")
-
+# ── Command API ────────────────────────────────────────────────────────────────
 @app.route("/api/command", methods=["POST"])
 def api_command():
-    data   = request.get_json(silent=True) or {}
-    query  = data.get("query", "").strip()
+    data  = request.get_json(silent=True) or {}
+    query = data.get("query", "").strip()
     if not query:
         return jsonify({"ok": False, "error": "empty query"})
-
     try:
         from engine.command import run_command
         response = run_command(query)
-        return jsonify({"ok": True, "response": response})
+        return jsonify({"ok": True, "response": response or ""})
     except Exception as e:
-        print(f"[command] {e}")
-        return jsonify({"ok": False, "error": str(e)})
+        print(f"[command error] {e}")
+        return jsonify({"ok": False, "error": str(e), "response": "Something went wrong."})
 
+# ── Listen API — runs mic in thread, returns within timeout ────────────────────
 @app.route("/api/listen", methods=["POST"])
 def api_listen():
-    """Trigger microphone listen and return recognised text."""
-    def _listen():
+    """
+    Starts mic listening in a background thread and waits up to 12 seconds
+    for a result. Returns immediately with whatever was heard (or empty string).
+    This keeps Flask's request thread from being tied up indefinitely.
+    """
+    result_q = queue.Queue()
+
+    def _do_listen():
         try:
             from engine.command import takecommand
-            return takecommand()
-        except Exception:
-            return ""
-    text = _listen()
+            text = takecommand()
+            result_q.put(text or "")
+        except Exception as e:
+            print(f"[listen error] {e}")
+            result_q.put("")
+
+    t = threading.Thread(target=_do_listen, daemon=True)
+    t.start()
+
+    try:
+        text = result_q.get(timeout=12)   # max 12s wait
+    except queue.Empty:
+        text = ""
+
     return jsonify({"text": text})
 
-# ── Auth API ──────────────────────────────────────────────────────────────────
+# ── Auth API ───────────────────────────────────────────────────────────────────
 @app.route("/api/auth", methods=["POST"])
 def api_auth():
-    result = Recognize.AuthenticateFace()
-    return jsonify({"authenticated": result == 1})
+    try:
+        result = Recognize.AuthenticateFace()
+        return jsonify({"authenticated": result == 1})
+    except Exception as e:
+        print(f"[auth error] {e}")
+        return jsonify({"authenticated": False})
 
-# ── Utilities ─────────────────────────────────────────────────────────────────
+# ── Utilities ──────────────────────────────────────────────────────────────────
 def _find_free_port(start=8000):
     port = start
     while True:
@@ -119,9 +127,8 @@ def _find_free_port(start=8000):
                 port += 1
 
 def _open_browser(port):
-    url = f"http://localhost:{port}/index.html"
     try:
-        webbrowser.open(url)
+        webbrowser.open(f"http://localhost:{port}/index.html")
     except Exception as e:
         print(f"[browser] {e}")
 
@@ -133,25 +140,28 @@ def _run_device_setup():
     except Exception as e:
         print(f"[device] {e}")
 
-# ── Entry ─────────────────────────────────────────────────────────────────────
+# ── Entry ──────────────────────────────────────────────────────────────────────
 def start():
     init_database()
     _run_device_setup()
 
     port = _find_free_port()
-    print(f"Starting Jarvis at http://127.0.0.1:{port}/index.html")
+    print(f"\n{'='*50}")
+    print(f"  J.A.R.V.I.S  starting at http://127.0.0.1:{port}")
+    print(f"  Say 'Hey Jarvis' to activate anytime")
+    print(f"{'='*50}\n")
 
-    # Start hotword listener in background
+    # Start hotword listener before Flask blocks
     try:
         from engine.hotword import start as start_hotword, set_port
         set_port(port)
         start_hotword()
-        print("[Jarvis] Hotword listener active — say 'Hey Jarvis' anytime!")
+        print("[Jarvis] Hotword listener active")
     except Exception as e:
-        print(f"[Jarvis] Hotword listener failed to start: {e}")
+        print(f"[Jarvis] Hotword listener failed: {e}")
 
-    # Open browser after short delay (let Flask start first)
-    threading.Timer(1.2, _open_browser, args=[port]).start()
+    # Open browser after Flask has a chance to bind
+    threading.Timer(1.5, _open_browser, args=[port]).start()
 
     app.run(host="127.0.0.1", port=port, debug=False, threaded=True)
 

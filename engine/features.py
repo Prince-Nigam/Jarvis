@@ -1,6 +1,5 @@
 import os
 import sqlite3
-import struct
 import subprocess
 import time
 import webbrowser
