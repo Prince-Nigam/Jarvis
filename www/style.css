@@ -296,6 +296,33 @@ canvas#canvasOne { position: absolute; top: 0; left: 0; }
     text-shadow: 0 0 12px #00f0ff, 0 0 25px rgba(0,240,255,0.5);
 }
 
+/* Last response shown in Oval (idle) section */
+.last-response {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--blue);
+    text-shadow: 0 0 8px var(--blue-dim);
+    letter-spacing: 1px;
+    min-height: 20px;
+    max-width: 600px;
+    margin: 4px auto 0;
+    text-align: center;
+    opacity: 0.85;
+    transition: opacity 0.3s;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Ask label */
+#askLabel {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: var(--blue-dim);
+    text-transform: uppercase;
+}
+
 /* Input row */
 .input-row { width: 100%; padding: 0 40px; }
 #TextInput {

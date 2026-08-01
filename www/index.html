@@ -158,8 +158,10 @@
                     </div>
                 </div>
             </div>
-            <h5 class="text-center mt-2">Ask me anything</h5>
-            <div class="input-row mt-3">
+            <h5 class="text-center mt-2" id="askLabel">Ask me anything</h5>
+            <!-- Last response shown below the sphere -->
+            <p id="lastResponse" class="text-center last-response"></p>
+            <div class="input-row mt-2">
                 <div id="TextInput" class="d-flex">
                     <input type="text" class="input-field" name="chatbox" id="chatbox" placeholder="type here ...">
                     <button type="button" id="SendBtn" class="glow-on-hover" hidden><i class="bi bi-send"></i></button>
@@ -176,7 +178,7 @@
         <!-- SiriWave (speaking) -->
         <section id="SiriWave" hidden>
             <div class="siri-wrap">
-                <p class="mb-4 siri-message hero-message">Hello, I am J.A.R.V.I.S</p>
+                <p id="jarvisResponse" class="mb-2 siri-message hero-message">Hello, I am J.A.R.V.I.S</p>
                 <div id="siri-container"></div>
             </div>
         </section>

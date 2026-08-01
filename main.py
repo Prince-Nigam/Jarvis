@@ -14,7 +14,7 @@ import sys
 import threading
 import webbrowser
 
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, jsonify, request, send_from_directory, make_response
 from flask_cors import CORS
 
 from engine.auth import Recognize
@@ -27,14 +27,26 @@ app = Flask(__name__, static_folder=WWW_DIR)
 CORS(app)
 
 # ── Frontend ───────────────────────────────────────────────────────────────────
+def _no_cache(response):
+    """Add no-cache headers so browser always fetches fresh JS/CSS."""
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"]        = "no-cache"
+    response.headers["Expires"]       = "0"
+    return response
+
 @app.route("/")
 @app.route("/index.html")
 def index():
-    return send_from_directory(WWW_DIR, "index.html")
+    resp = make_response(send_from_directory(WWW_DIR, "index.html"))
+    return _no_cache(resp)
 
 @app.route("/<path:filename>")
 def static_files(filename):
-    return send_from_directory(WWW_DIR, filename)
+    resp = make_response(send_from_directory(WWW_DIR, filename))
+    # Only bust cache for JS and CSS, not images/fonts
+    if filename.endswith(('.js', '.css')):
+        return _no_cache(resp)
+    return resp
 
 # ── System stats ───────────────────────────────────────────────────────────────
 @app.route("/api/system_stats")
