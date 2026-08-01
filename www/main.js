@@ -1,14 +1,13 @@
 /**
- * main.js — Jarvis UI logic
- * Uses REST API (/api/*) instead of eel.
+ * main.js — Jarvis UI logic (Flask REST API)
  */
-
 $(document).ready(function () {
 
-    // ── Siri wave init ────────────────────────────────────────────────────────
+    // ── Siri wave init ─────────────────────────────────────────────────────
+    var siriWave = null;
     try {
         if (typeof SiriWave !== 'undefined') {
-            new SiriWave({
+            siriWave = new SiriWave({
                 container: document.getElementById('siri-container'),
                 width: 700, height: 180,
                 style: 'ios9', amplitude: '1', speed: '0.30', autostart: true
@@ -16,7 +15,7 @@ $(document).ready(function () {
         }
     } catch (e) {}
 
-    // ── Text animations ───────────────────────────────────────────────────────
+    // ── Text animations ────────────────────────────────────────────────────
     try {
         $('.text').textillate({
             loop: true, sync: true,
@@ -32,19 +31,22 @@ $(document).ready(function () {
         });
     } catch (e) {}
 
-    // ── Boot: show WishMessage then run auth ──────────────────────────────────
-    var hour = new Date().getHours();
+    // ── Greeting ───────────────────────────────────────────────────────────
+    var hour  = new Date().getHours();
     var greet = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
     $('#WishMessage').text(greet + ', Initializing...');
 
-    // Give the server 800ms then kick off auth
     setTimeout(function () {
         if (typeof window.runAuthFlow === 'function') window.runAuthFlow();
     }, 800);
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
+    // ── Helpers ────────────────────────────────────────────────────────────
     function showAssistantText(msg) {
-        if (msg) $('.siri-message').text(msg);
+        if (msg && msg.trim()) {
+            try { $('.siri-message').textillate('stop'); } catch(e) {}
+            $('.siri-message').text(msg);
+            try { $('.siri-message').textillate('start'); } catch(e) {}
+        }
     }
 
     function buildFallbackReply(message) {
@@ -55,13 +57,18 @@ $(document).ready(function () {
         return 'You said: "' + message + '". Ready for your next command.';
     }
 
-    // ── Process a command ─────────────────────────────────────────────────────
+    // ── Process command ────────────────────────────────────────────────────
     function processCommand(text) {
         text = (text || '').trim();
-        if (!text) { showAssistantText('Listening...'); return; }
+        if (!text) {
+            showAssistantText('Listening...');
+            return;
+        }
 
         if (typeof window.addSenderMsg === 'function') window.addSenderMsg(text);
-        $('#Oval').hide();
+        if (typeof window.addLog === 'function')       window.addLog('USER > ' + text, 'cmd');
+
+        $('#Oval').attr('hidden', true).hide();
         $('#SiriWave').removeAttr('hidden').show();
         showAssistantText('Working on it...');
 
@@ -71,70 +78,104 @@ $(document).ready(function () {
             body: JSON.stringify({ query: text })
         })
         .then(function (r) { return r.json(); })
-        .then(function () {
-            // Response comes via speak API — just restore UI after delay
+        .then(function (data) {
+            var reply = (data && data.response && data.response.trim())
+                ? data.response
+                : buildFallbackReply(text);
+
+            showAssistantText(reply);
+            if (typeof window.addReceiverMsg === 'function') window.addReceiverMsg(reply);
+            if (typeof window.addLog         === 'function') window.addLog('JARVIS > ' + reply, 'success');
+
             setTimeout(function () {
                 if (typeof window.showHood === 'function') window.showHood();
-            }, 3000);
+            }, 3500);
         })
         .catch(function () {
             var reply = buildFallbackReply(text);
-            if (typeof window.addReceiverMsg === 'function') window.addReceiverMsg(reply);
             showAssistantText(reply);
+            if (typeof window.addReceiverMsg === 'function') window.addReceiverMsg(reply);
             setTimeout(function () {
                 if (typeof window.showHood === 'function') window.showHood();
             }, 1500);
         });
     }
 
-    // ── Mic button: listen via API ────────────────────────────────────────────
-    $('#MicBtn').click(function () {
+    // ── Mic button ─────────────────────────────────────────────────────────
+    $('#MicBtn').on('click', function () {
         showAssistantText('Listening...');
-        $('#Oval').hide();
+        $('#Oval').attr('hidden', true).hide();
         $('#SiriWave').removeAttr('hidden').show();
+        if (typeof window.addLog === 'function') window.addLog('Mic activated', 'info');
+
+        // Show a listening timeout indicator
+        var listenTimer = setTimeout(function () {
+            showAssistantText("Still listening...");
+        }, 4000);
 
         fetch('/api/listen', { method: 'POST' })
             .then(function (r) { return r.json(); })
             .then(function (data) {
+                clearTimeout(listenTimer);
                 var text = (data.text || '').trim();
                 if (text) {
                     processCommand(text);
                 } else {
                     showAssistantText("Didn't catch that. Try again.");
-                    if (typeof window.showHood === 'function') window.showHood();
+                    if (typeof window.addLog === 'function') window.addLog('No speech detected', 'warn');
+                    setTimeout(function () {
+                        if (typeof window.showHood === 'function') window.showHood();
+                    }, 1500);
                 }
             })
             .catch(function () {
-                // Mic not available — use text box value
+                clearTimeout(listenTimer);
                 var val = $('#chatbox').val().trim();
-                if (val) processCommand(val);
-                else if (typeof window.showHood === 'function') window.showHood();
+                if (val) {
+                    processCommand(val);
+                } else {
+                    showAssistantText('Microphone not available.');
+                    setTimeout(function () {
+                        if (typeof window.showHood === 'function') window.showHood();
+                    }, 1500);
+                }
             });
     });
 
-    // ── Send button / Enter ───────────────────────────────────────────────────
+    // ── Send / Enter ───────────────────────────────────────────────────────
     function PlayAssistant(message) {
         if (!message.trim()) return;
         processCommand(message);
         $('#chatbox').val('');
-        $('#MicBtn').show();
-        $('#SendBtn').hide();
+        $('#MicBtn').attr('hidden', false);
+        $('#SendBtn').attr('hidden', true);
     }
 
     function ShowHideButton(val) {
-        if (val.length === 0) { $('#MicBtn').show(); $('#SendBtn').hide(); }
-        else                  { $('#MicBtn').hide(); $('#SendBtn').show(); }
+        if (val.length === 0) {
+            $('#MicBtn').attr('hidden', false);
+            $('#SendBtn').attr('hidden', true);
+        } else {
+            $('#MicBtn').attr('hidden', true);
+            $('#SendBtn').attr('hidden', false);
+        }
     }
 
     $('#chatbox').on('keyup', function () { ShowHideButton($(this).val()); });
-    $('#SendBtn').click(function () { PlayAssistant($('#chatbox').val()); });
+    $('#SendBtn').on('click', function () { PlayAssistant($('#chatbox').val()); });
     $('#chatbox').on('keypress', function (e) {
         if (e.which === 13) PlayAssistant($(this).val());
     });
 
-    // Win + J shortcut
-    document.addEventListener('keyup', function (e) {
-        if (e.key === 'j' && e.metaKey) processCommand('hello');
+    // Windows keyboard shortcut: Ctrl+Alt+J  (metaKey = Mac Command, not Windows)
+    document.addEventListener('keydown', function (e) {
+        if (e.ctrlKey && e.altKey && e.key.toLowerCase() === 'j') {
+            e.preventDefault();
+            processCommand('hello');
+        }
     });
+
+    // Expose processCommand globally for hotword post-wake API call
+    window.processCommand = processCommand;
 
 });

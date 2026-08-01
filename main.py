@@ -79,29 +79,14 @@ def api_command():
     query  = data.get("query", "").strip()
     if not query:
         return jsonify({"ok": False, "error": "empty query"})
-    threading.Thread(target=_run_command, args=(query,), daemon=True).start()
-    return jsonify({"ok": True})
 
-def _run_command(query):
     try:
-        from engine.features import (
-            chatBot, findContact, makeCall, openCommand,
-            PlayYoutube, sendMessage, whatsApp,
-        )
-        from engine.command import speak, takecommand
-
-        if "open" in query:
-            openCommand(query)
-        elif "on youtube" in query:
-            PlayYoutube(query)
-        elif any(k in query for k in ("send message", "phone call", "video call")):
-            contact_no, name = findContact(query)
-            if contact_no:
-                chatBot(query)   # simplified — full flow needs mic
-        else:
-            chatBot(query)
+        from engine.command import run_command
+        response = run_command(query)
+        return jsonify({"ok": True, "response": response})
     except Exception as e:
         print(f"[command] {e}")
+        return jsonify({"ok": False, "error": str(e)})
 
 @app.route("/api/listen", methods=["POST"])
 def api_listen():
@@ -155,6 +140,15 @@ def start():
 
     port = _find_free_port()
     print(f"Starting Jarvis at http://127.0.0.1:{port}/index.html")
+
+    # Start hotword listener in background
+    try:
+        from engine.hotword import start as start_hotword, set_port
+        set_port(port)
+        start_hotword()
+        print("[Jarvis] Hotword listener active — say 'Hey Jarvis' anytime!")
+    except Exception as e:
+        print(f"[Jarvis] Hotword listener failed to start: {e}")
 
     # Open browser after short delay (let Flask start first)
     threading.Timer(1.2, _open_browser, args=[port]).start()

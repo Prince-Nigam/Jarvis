@@ -1,82 +1,83 @@
-/**
- * controller.js
- * Handles auth flow, dashboard transitions, and chat message rendering.
- * Uses REST API instead of eel.
- */
-
 $(document).ready(function () {
 
-    // ── Auth flow (called from main.js on page load) ──────────────────────────
-    window.runAuthFlow = function () {
-        // Step 1: hide loader, show face auth animation
-        $("#Loader").hide();
-        $("#FaceAuth").removeAttr("hidden").show();
+    // Display Speak Message
+    window.DisplayMessage = function (message) {
+        $(".siri-message li:first").text(message);
+        try { $('.siri-message').textillate('start'); } catch(e) {}
+    };
 
-        // Step 2: call auth API
+    // Show Oval hood — hide siri wave
+    window.showHood = function () {
+        $("#Oval").attr("hidden", false).show();
+        $("#SiriWave").attr("hidden", true).hide();
+    };
+
+    // Chat: sender message
+    window.addSenderMsg = function (message) {
+        var chatBox = document.getElementById("chat-canvas-body");
+        if (!message || !message.trim()) return;
+        chatBox.innerHTML += `<div class="row justify-content-end mb-4">
+            <div class="width-size"><div class="sender_message">${message}</div></div>
+        </div>`;
+        chatBox.scrollTop = chatBox.scrollHeight;
+    };
+
+    // Chat: receiver message
+    window.addReceiverMsg = function (message) {
+        var chatBox = document.getElementById("chat-canvas-body");
+        if (!message || !message.trim()) return;
+        chatBox.innerHTML += `<div class="row justify-content-start mb-4">
+            <div class="width-size"><div class="receiver_message">${message}</div></div>
+        </div>`;
+        chatBox.scrollTop = chatBox.scrollHeight;
+    };
+
+    // Auth flow → then show Dashboard
+    window.runAuthFlow = function () {
         fetch('/api/auth', { method: 'POST' })
             .then(function (r) { return r.json(); })
             .then(function (data) {
-                if (data.authenticated) {
-                    if (window.addLog) window.addLog('Face auth: AUTHENTICATED', 'success');
-                    // Show success animation
-                    $("#FaceAuth").hide();
-                    $("#FaceAuthSuccess").removeAttr("hidden").show();
-
+                // Check if face auth was successful
+                if (data && data.authenticated) {
+                    // Authenticated — show full boot animation
+                    $("#Loader").attr("hidden", true);
+                    $("#FaceAuth").attr("hidden", false);
                     setTimeout(function () {
-                        $("#FaceAuthSuccess").hide();
-                        $("#HelloGreet").removeAttr("hidden").show();
-
+                        $("#FaceAuth").attr("hidden", true);
+                        $("#FaceAuthSuccess").attr("hidden", false);
                         setTimeout(function () {
-                            launchDashboard();
-                        }, 1800);
-                    }, 1500);
+                            $("#FaceAuthSuccess").attr("hidden", true);
+                            $("#HelloGreet").attr("hidden", false);
+                            setTimeout(_showDashboard, 2000);
+                        }, 2000);
+                    }, 2000);
                 } else {
-                    $("#WishMessage").text("Face Authentication Failed. Try again.");
-                    setTimeout(window.runAuthFlow, 2000);
+                    // Not authenticated or trainer not ready — skip animations, go straight to dashboard
+                    _showDashboard();
                 }
             })
             .catch(function () {
-                // Auth API not available — skip auth, go straight to dashboard
-                if (window.addLog) window.addLog('Auth API unavailable — bypass', 'warn');
-                launchDashboard();
+                // Auth API unavailable — skip straight to dashboard
+                _showDashboard();
             });
     };
 
-    function launchDashboard() {
+    function _showDashboard() {
         $("#BootScreen").fadeOut(600, function () {
-            $("#Dashboard").removeAttr("hidden").hide().fadeIn(400);
-            setTimeout(function () {
-                if (typeof window.initFileBrowser === 'function') window.initFileBrowser();
-                if (typeof window.refreshSysStats  === 'function') window.refreshSysStats();
-                $("#Oval").addClass("animate__animated animate__zoomIn");
-            }, 300);
+            $("#Dashboard").removeAttr("hidden").hide().fadeIn(500, function () {
+                // Start system stats polling now that dashboard is visible
+                if (typeof window.startSysStatPolling === 'function') {
+                    window.startSysStatPolling();
+                }
+            });
+            // Init file browser
+            if (typeof window.initFileBrowser === 'function') {
+                window.initFileBrowser();
+            }
+            if (typeof window.addLog === 'function') {
+                window.addLog('Dashboard loaded', 'success');
+            }
         });
     }
-
-    // ── Chat helpers (called by main.js) ─────────────────────────────────────
-    window.addSenderMsg = function (message) {
-        var chatBox = document.getElementById("chat-canvas-body");
-        if (!chatBox || !message.trim()) return;
-        chatBox.innerHTML +=
-            '<div class="row justify-content-end mb-4">' +
-            '<div class="width-size"><div class="sender_message">' + message + '</div></div>' +
-            '</div>';
-        chatBox.scrollTop = chatBox.scrollHeight;
-    };
-
-    window.addReceiverMsg = function (message) {
-        var chatBox = document.getElementById("chat-canvas-body");
-        if (!chatBox || !message.trim()) return;
-        chatBox.innerHTML +=
-            '<div class="row justify-content-start mb-4">' +
-            '<div class="width-size"><div class="receiver_message">' + message + '</div></div>' +
-            '</div>';
-        chatBox.scrollTop = chatBox.scrollHeight;
-    };
-
-    window.showHood = function () {
-        $("#Oval").show();
-        $("#SiriWave").hide();
-    };
 
 });

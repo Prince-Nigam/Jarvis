@@ -1,10 +1,18 @@
 @echo off
+title JARVIS - AI Assistant
 cd /d "%~dp0"
 
-if exist "envJarvis\Scripts\python.exe" (
-  "envJarvis\Scripts\python.exe" run.py
-) else (
-  python run.py
-)
+echo ==========================================
+echo   J.A.R.V.I.S  - Starting up...
+echo ==========================================
+echo.
+echo  Say "Hey Jarvis" or "Wake Jarvis" to activate
+echo.
 
-if errorlevel 1 pause
+python run.py
+
+if errorlevel 1 (
+    echo.
+    echo [ERROR] Jarvis crashed. Check above for details.
+    pause
+)

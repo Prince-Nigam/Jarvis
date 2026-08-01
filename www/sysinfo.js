@@ -84,13 +84,21 @@
             .catch(function () { /* server not ready yet */ });
     }
 
-    // Start polling once DOM is ready
-    document.addEventListener('DOMContentLoaded', function () {
+    // Start polling — called by controller.js after dashboard is shown
+    // Also poll immediately on dashboard reveal
+    window.refreshSysStats = poll;
+    window.startSysStatPolling = function () {
         poll();
         setInterval(poll, POLL_MS);
-    });
+    };
 
-    // Also expose so controller can trigger manually
-    window.refreshSysStats = poll;
+    // Fallback: if dashboard is already shown on DOMContentLoaded, start polling
+    document.addEventListener('DOMContentLoaded', function () {
+        var dash = document.getElementById('Dashboard');
+        if (dash && !dash.hidden) {
+            poll();
+            setInterval(poll, POLL_MS);
+        }
+    });
 
 }());

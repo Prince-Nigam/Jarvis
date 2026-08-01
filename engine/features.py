@@ -22,19 +22,14 @@ except ModuleNotFoundError:
     pyaudio = None
 
 try:
-    import pyautogui
-except ModuleNotFoundError:
-    pyautogui = None
-
-try:
     import pywhatkit as kit
 except ModuleNotFoundError:
     kit = None
 
 try:
-    import pvporcupine
+    import pyautogui
 except ModuleNotFoundError:
-    pvporcupine = None
+    pyautogui = None
 
 try:
     from hugchat import hugchat
@@ -106,7 +101,8 @@ def openCommand(query):
             return
 
         speak("Opening " + app_name)
-        os.system("start " + app_name)
+        # Safe: no shell=True, app_name passed as separate argument
+        subprocess.Popen(["cmd", "/c", "start", "", app_name], shell=False)
     except Exception:
         speak("Something went wrong")
     finally:
@@ -125,59 +121,6 @@ def PlayYoutube(query):
 
     speak("Playing " + search_term + " on YouTube")
     kit.playonyt(search_term)
-
-
-def hotword():
-    porcupine = None
-    paud = None
-    audio_stream = None
-    if pvporcupine is None or pyaudio is None:
-        print("[Hotword] Dependencies missing (pvporcupine/pyaudio). Hotword listener disabled.")
-        return
-
-    # Porcupine requires an access key from https://console.picovoice.ai/
-    access_key = PORCUPINE_ACCESS_KEY
-    if not access_key:
-        print(
-            "[Hotword] PORCUPINE_ACCESS_KEY not set in environment variables. "
-            "Get a free key at https://console.picovoice.ai/ and set it. "
-            "Hotword listener disabled."
-        )
-        return
-
-    try:
-        porcupine = pvporcupine.create(access_key=access_key, keywords=["jarvis", "alexa"])
-        paud = pyaudio.PyAudio()
-        audio_stream = paud.open(
-            rate=porcupine.sample_rate,
-            channels=1,
-            format=pyaudio.paInt16,
-            input=True,
-            frames_per_buffer=porcupine.frame_length,
-        )
-
-        print("[Hotword] Listening for wake word...")
-        while True:
-            keyword = audio_stream.read(porcupine.frame_length)
-            keyword = struct.unpack_from("h" * porcupine.frame_length, keyword)
-            keyword_index = porcupine.process(keyword)
-
-            if keyword_index >= 0:
-                print("[Hotword] Wake word detected!")
-                if pyautogui is not None:
-                    pyautogui.keyDown("win")
-                    pyautogui.press("j")
-                    time.sleep(2)
-                    pyautogui.keyUp("win")
-    except Exception as exc:
-        print(f"[Hotword] Listener stopped: {exc}")
-    finally:
-        if porcupine is not None:
-            porcupine.delete()
-        if audio_stream is not None:
-            audio_stream.close()
-        if paud is not None:
-            paud.terminate()
 
 
 def findContact(query):
@@ -261,7 +204,13 @@ def _simple_chat_fallback(query):
     return f"I heard: {query}. Configure HugChat cookies for full chat support."
 
 
+# Reuse chatbot session across calls so conversation history is preserved
+_chatbot_instance = None
+_chatbot_conv_id  = None
+
 def chatBot(query):
+    global _chatbot_instance, _chatbot_conv_id
+
     cookie_path = os.path.join(os.path.dirname(__file__), "cookies.json")
 
     if hugchat is None or not os.path.exists(cookie_path):
@@ -271,14 +220,21 @@ def chatBot(query):
 
     try:
         user_input = query.lower()
-        chatbot = hugchat.ChatBot(cookie_path=cookie_path)
-        conversation_id = chatbot.new_conversation()
-        chatbot.change_conversation(conversation_id)
-        response = chatbot.chat(user_input)
+
+        # Create session once, reuse afterwards
+        if _chatbot_instance is None:
+            _chatbot_instance = hugchat.ChatBot(cookie_path=cookie_path)
+            _chatbot_conv_id  = _chatbot_instance.new_conversation()
+
+        _chatbot_instance.change_conversation(_chatbot_conv_id)
+        response = str(_chatbot_instance.chat(user_input))
         speak(response)
         return response
     except Exception as exc:
         print(f"Chat error: {exc}")
+        # Reset on error so next call gets a fresh session
+        _chatbot_instance = None
+        _chatbot_conv_id  = None
         response = _simple_chat_fallback(query)
         speak(response)
         return response

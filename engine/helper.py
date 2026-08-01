@@ -51,4 +51,5 @@ def goback(steps=4):
 
 # To replace space in string with %s for complete message send
 def replace_spaces_with_percent_s(input_string):
-    return input_string.replace(' ', '%s')
+    """Replace spaces with %20 for proper URL/ADB encoding."""
+    return input_string.replace(' ', '%20')

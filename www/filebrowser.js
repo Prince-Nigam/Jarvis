@@ -193,8 +193,11 @@
 
     function escHtml(str) {
         return String(str)
-            .replace(/&/g, '&amp;').replace(/"/g, '&quot;')
-            .replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            .replace(/&/g,  '&amp;')
+            .replace(/"/g,  '&quot;')
+            .replace(/'/g,  '&#39;')
+            .replace(/</g,  '&lt;')
+            .replace(/>/g,  '&gt;');
     }
 
     window.initFileBrowser = function () { showDrives(); };
