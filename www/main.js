@@ -1,199 +1,140 @@
+/**
+ * main.js — Jarvis UI logic
+ * Uses REST API (/api/*) instead of eel.
+ */
+
 $(document).ready(function () {
 
-    function showAssistantText(message) {
-        if (!message) {
-            return;
-        }
-        $('.siri-message').text(message);
-    }
-
-    function addChatMessage(message, side) {
-        if (!message || !message.trim()) {
-            return;
-        }
-        const chatBox = document.getElementById('chat-canvas-body');
-        if (!chatBox) {
-            return;
-        }
-        const cssClass = side === 'sender' ? 'sender_message' : 'receiver_message';
-        chatBox.innerHTML += `<div class="row ${side === 'sender' ? 'justify-content-end' : 'justify-content-start'} mb-4"><div class="width-size"><div class="${cssClass}">${message}</div></div></div>`;
-        chatBox.scrollTop = chatBox.scrollHeight;
-    }
-
-    function buildFallbackReply(message) {
-        const text = (message || '').toLowerCase();
-        if (text.includes('time')) {
-            return `The current time is ${new Date().toLocaleTimeString()}`;
-        }
-        if (text.includes('date')) {
-            return `Today is ${new Date().toLocaleDateString()}`;
-        }
-        if (text.includes('hello') || text.includes('hi')) {
-            return 'Hello! Jarvis is ready in fallback mode.';
-        }
-        return `You said: ${message}. I am ready for your next command.`;
-    }
-
-    function processAssistantMessage(message) {
-        const text = (message || '').trim();
-        if (!text) {
-            showAssistantText('Listening...');
-            return;
-        }
-
-        addChatMessage(text, 'sender');
-        $('#Oval').attr('hidden', true);
-        $('#SiriWave').attr('hidden', false);
-        showAssistantText('Working on it...');
-
-        if (typeof eel !== 'undefined') {
-            try {
-                eel.allCommands(text);
-                return;
-            } catch (err) {
-                console.log('Eel command skipped:', err);
-            }
-        }
-
-        setTimeout(function () {
-            const reply = buildFallbackReply(text);
-            addChatMessage(reply, 'receiver');
-            showAssistantText(reply);
-            $('#Oval').attr('hidden', false);
-            $('#SiriWave').attr('hidden', true);
-        }, 600);
-    }
-
-    if (typeof eel !== 'undefined') {
-        try {
-            eel.init();
-        } catch (err) {
-            console.log('Eel init skipped:', err);
-        }
-    }
-
-    try {
-        $('.text').textillate({
-            loop: true,
-            sync: true,
-            in:{
-                effect: "bounceIn",
-            },
-            out:{
-                effect: "bounceOut",
-            },
-        });
-    } catch (err) {
-        console.log('Textillate init skipped:', err);
-    }
-
-    // Siri configuration
+    // ── Siri wave init ────────────────────────────────────────────────────────
     try {
         if (typeof SiriWave !== 'undefined') {
             new SiriWave({
-                container: document.getElementById("siri-container"),
-                width: 800,
-                height: 200,
-                style: "ios9",
-                amplitude: "1",
-                speed: "0.30",
-                autostart: true
+                container: document.getElementById('siri-container'),
+                width: 700, height: 180,
+                style: 'ios9', amplitude: '1', speed: '0.30', autostart: true
             });
         }
-    } catch (err) {
-        console.log('SiriWave init skipped:', err);
-    }
+    } catch (e) {}
+
+    // ── Text animations ───────────────────────────────────────────────────────
+    try {
+        $('.text').textillate({
+            loop: true, sync: true,
+            in: { effect: 'bounceIn' }, out: { effect: 'bounceOut' }
+        });
+    } catch (e) {}
 
     try {
         $('.siri-message').textillate({
-            loop: true,
-            sync: true,
-            in:{
-                effect: "fadeInUp",
-                sync: true,
-            },
-            out:{
-                effect: "fadeOutUp",
-                sync: true,
-            },
+            loop: true, sync: true,
+            in:  { effect: 'fadeInUp',  sync: true },
+            out: { effect: 'fadeOutUp', sync: true }
         });
-    } catch (err) {
-        console.log('Siri message animation skipped:', err);
+    } catch (e) {}
+
+    // ── Boot: show WishMessage then run auth ──────────────────────────────────
+    var hour = new Date().getHours();
+    var greet = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
+    $('#WishMessage').text(greet + ', Initializing...');
+
+    // Give the server 800ms then kick off auth
+    setTimeout(function () {
+        if (typeof window.runAuthFlow === 'function') window.runAuthFlow();
+    }, 800);
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+    function showAssistantText(msg) {
+        if (msg) $('.siri-message').text(msg);
     }
 
-    // Mic button click event 
+    function buildFallbackReply(message) {
+        var t = (message || '').toLowerCase();
+        if (t.includes('time'))  return 'The current time is ' + new Date().toLocaleTimeString();
+        if (t.includes('date'))  return 'Today is ' + new Date().toLocaleDateString();
+        if (t.includes('hello') || t.includes('hi')) return 'Hello Sir! How can I help you?';
+        return 'You said: "' + message + '". Ready for your next command.';
+    }
 
-    $("#MicBtn").click(function () {
-        if (typeof eel !== 'undefined') {
-            try {
-                eel.playAssistantSound();
-            } catch (err) {
-                console.log('Eel sound skipped:', err);
-            }
-        }
-        processAssistantMessage($('#chatbox').val() || 'hello');
-    });
+    // ── Process a command ─────────────────────────────────────────────────────
+    function processCommand(text) {
+        text = (text || '').trim();
+        if (!text) { showAssistantText('Listening...'); return; }
 
-    function doc_keyUp(e) {
-        // this would test for whichever key is 40 (down arrow) and the ctrl key at the same time
+        if (typeof window.addSenderMsg === 'function') window.addSenderMsg(text);
+        $('#Oval').hide();
+        $('#SiriWave').removeAttr('hidden').show();
+        showAssistantText('Working on it...');
 
-        if (e.key === 'j' && e.metaKey) {   //window key + j activate jarvis
-            if (typeof eel !== 'undefined') {
-                try {
-                    eel.playAssistantSound();
-                } catch (err) {
-                    console.log('Eel sound skipped:', err);
+        fetch('/api/command', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: text })
+        })
+        .then(function (r) { return r.json(); })
+        .then(function () {
+            // Response comes via speak API — just restore UI after delay
+            setTimeout(function () {
+                if (typeof window.showHood === 'function') window.showHood();
+            }, 3000);
+        })
+        .catch(function () {
+            var reply = buildFallbackReply(text);
+            if (typeof window.addReceiverMsg === 'function') window.addReceiverMsg(reply);
+            showAssistantText(reply);
+            setTimeout(function () {
+                if (typeof window.showHood === 'function') window.showHood();
+            }, 1500);
+        });
+    }
+
+    // ── Mic button: listen via API ────────────────────────────────────────────
+    $('#MicBtn').click(function () {
+        showAssistantText('Listening...');
+        $('#Oval').hide();
+        $('#SiriWave').removeAttr('hidden').show();
+
+        fetch('/api/listen', { method: 'POST' })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                var text = (data.text || '').trim();
+                if (text) {
+                    processCommand(text);
+                } else {
+                    showAssistantText("Didn't catch that. Try again.");
+                    if (typeof window.showHood === 'function') window.showHood();
                 }
-            }
-            processAssistantMessage('hello');
-        }
-    }
-    document.addEventListener('keyup', doc_keyUp, false);
+            })
+            .catch(function () {
+                // Mic not available — use text box value
+                var val = $('#chatbox').val().trim();
+                if (val) processCommand(val);
+                else if (typeof window.showHood === 'function') window.showHood();
+            });
+    });
 
-
+    // ── Send button / Enter ───────────────────────────────────────────────────
     function PlayAssistant(message) {
-
-        if (message != "") {
-            processAssistantMessage(message);
-            $("#chatbox").val("")
-            $("#MicBtn").attr('hidden', false);
-            $("#SendBtn").attr('hidden', true);
-
-        }
-
+        if (!message.trim()) return;
+        processCommand(message);
+        $('#chatbox').val('');
+        $('#MicBtn').show();
+        $('#SendBtn').hide();
     }
 
-     function ShowHideButton(message) {
-        if (message.length == 0) {
-            $("#MicBtn").attr('hidden', false);
-            $("#SendBtn").attr('hidden', true);
-        }
-        else {
-            $("#MicBtn").attr('hidden', true);
-            $("#SendBtn").attr('hidden', false);
-        }
+    function ShowHideButton(val) {
+        if (val.length === 0) { $('#MicBtn').show(); $('#SendBtn').hide(); }
+        else                  { $('#MicBtn').hide(); $('#SendBtn').show(); }
     }
 
-    $("#chatbox").keyup(function () {
-
-        let message = $("#chatbox").val();
-        ShowHideButton(message)
-    
+    $('#chatbox').on('keyup', function () { ShowHideButton($(this).val()); });
+    $('#SendBtn').click(function () { PlayAssistant($('#chatbox').val()); });
+    $('#chatbox').on('keypress', function (e) {
+        if (e.which === 13) PlayAssistant($(this).val());
     });
 
-    $("#SendBtn").click(function () {
-    
-        let message = $("#chatbox").val()
-        PlayAssistant(message)
-    
-    });
-
-    $("#chatbox").keypress(function (e) {
-        key = e.which;
-        if (key == 13) {
-            let message = $("#chatbox").val()
-            PlayAssistant(message)
-        }
+    // Win + J shortcut
+    document.addEventListener('keyup', function (e) {
+        if (e.key === 'j' && e.metaKey) processCommand('hello');
     });
 
 });

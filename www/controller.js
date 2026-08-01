@@ -1,93 +1,82 @@
+/**
+ * controller.js
+ * Handles auth flow, dashboard transitions, and chat message rendering.
+ * Uses REST API instead of eel.
+ */
+
 $(document).ready(function () {
 
-    function safeExpose(name, fn) {
-        if (typeof eel !== 'undefined') {
-            try {
-                eel.expose(fn, name);
-            } catch (err) {
-                console.log('Expose skipped:', err);
-            }
-        }
+    // ── Auth flow (called from main.js on page load) ──────────────────────────
+    window.runAuthFlow = function () {
+        // Step 1: hide loader, show face auth animation
+        $("#Loader").hide();
+        $("#FaceAuth").removeAttr("hidden").show();
+
+        // Step 2: call auth API
+        fetch('/api/auth', { method: 'POST' })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data.authenticated) {
+                    if (window.addLog) window.addLog('Face auth: AUTHENTICATED', 'success');
+                    // Show success animation
+                    $("#FaceAuth").hide();
+                    $("#FaceAuthSuccess").removeAttr("hidden").show();
+
+                    setTimeout(function () {
+                        $("#FaceAuthSuccess").hide();
+                        $("#HelloGreet").removeAttr("hidden").show();
+
+                        setTimeout(function () {
+                            launchDashboard();
+                        }, 1800);
+                    }, 1500);
+                } else {
+                    $("#WishMessage").text("Face Authentication Failed. Try again.");
+                    setTimeout(window.runAuthFlow, 2000);
+                }
+            })
+            .catch(function () {
+                // Auth API not available — skip auth, go straight to dashboard
+                if (window.addLog) window.addLog('Auth API unavailable — bypass', 'warn');
+                launchDashboard();
+            });
+    };
+
+    function launchDashboard() {
+        $("#BootScreen").fadeOut(600, function () {
+            $("#Dashboard").removeAttr("hidden").hide().fadeIn(400);
+            setTimeout(function () {
+                if (typeof window.initFileBrowser === 'function') window.initFileBrowser();
+                if (typeof window.refreshSysStats  === 'function') window.refreshSysStats();
+                $("#Oval").addClass("animate__animated animate__zoomIn");
+            }, 300);
+        });
     }
 
-    // Display Speak Message
-    safeExpose('DisplayMessage', function DisplayMessage(message) {
-        if (!message) {
-            return;
-        }
-        $('.siri-message').text(message);
-    });
-
-    safeExpose('ShowHood', function ShowHood() {
-        $("#Oval").attr("hidden", false);
-        $("#SiriWave").attr("hidden", true);
-    });
-
-    safeExpose('senderText', function senderText(message) {
+    // ── Chat helpers (called by main.js) ─────────────────────────────────────
+    window.addSenderMsg = function (message) {
         var chatBox = document.getElementById("chat-canvas-body");
-        if (message.trim() !== "") {
-            chatBox.innerHTML += `<div class="row justify-content-end mb-4">
-            <div class = "width-size">
-            <div class="sender_message">${message}</div>
-        </div>`; 
-    
-            // Scroll to the bottom of the chat box
-            chatBox.scrollTop = chatBox.scrollHeight;
-        }
-    });
+        if (!chatBox || !message.trim()) return;
+        chatBox.innerHTML +=
+            '<div class="row justify-content-end mb-4">' +
+            '<div class="width-size"><div class="sender_message">' + message + '</div></div>' +
+            '</div>';
+        chatBox.scrollTop = chatBox.scrollHeight;
+    };
 
-     safeExpose('receiverText', function receiverText(message) {
-
+    window.addReceiverMsg = function (message) {
         var chatBox = document.getElementById("chat-canvas-body");
-        if (message.trim() !== "") {
-            chatBox.innerHTML += `<div class="row justify-content-start mb-4">
-            <div class = "width-size">
-            <div class="receiver_message">${message}</div>
-            </div>
-        </div>`; 
-    
-            // Scroll to the bottom of the chat box
-            chatBox.scrollTop = chatBox.scrollHeight;
-        }
-        
-    });
-     
-    // Hide Loader and display Face Auth animation
-    safeExpose('hideLoader', function hideLoader() {
+        if (!chatBox || !message.trim()) return;
+        chatBox.innerHTML +=
+            '<div class="row justify-content-start mb-4">' +
+            '<div class="width-size"><div class="receiver_message">' + message + '</div></div>' +
+            '</div>';
+        chatBox.scrollTop = chatBox.scrollHeight;
+    };
 
-        $("#Loader").attr("hidden", true);
-        $("#FaceAuth").attr("hidden", false);
-
-    });
-    // Hide Face auth and display Face Auth success animation
-    safeExpose('hideFaceAuth', function hideFaceAuth() {
-
-        $("#FaceAuth").attr("hidden", true);
-        $("#FaceAuthSuccess").attr("hidden", false);
-
-    });
-    // Hide success and display 
-    safeExpose('hideFaceAuthSuccess', function hideFaceAuthSuccess() {
-
-        $("#FaceAuthSuccess").attr("hidden", true);
-        $("#HelloGreet").attr("hidden", false);
-
-    });
-
-
-    // Hide Start Page and display blob
-    safeExpose('hideStart', function hideStart() {
-
-        $("#Start").attr("hidden", true);
-
-        setTimeout(function () {
-            $("#Oval").addClass("animate__animated animate__zoomIn");
-
-        }, 1000)
-        setTimeout(function () {
-            $("#Oval").attr("hidden", false);
-        }, 1000)
-    });
-
+    window.showHood = function () {
+        $("#Oval").show();
+        $("#SiriWave").hide();
+    };
 
 });

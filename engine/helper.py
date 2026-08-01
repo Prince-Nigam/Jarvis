@@ -44,10 +44,10 @@ def adbInput(message):
     os.system(command)
     time.sleep(1)
 
-# to go complete back
-def goback(key_code):
-    for i in range(6):
-        keyEvent(key_code)
+# to go complete back (sends back keyevent 'steps' times)
+def goback(steps=4):
+    for _ in range(steps):
+        keyEvent(4)  # keycode 4 = Android BACK button
 
 # To replace space in string with %s for complete message send
 def replace_spaces_with_percent_s(input_string):

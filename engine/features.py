@@ -42,13 +42,17 @@ except ModuleNotFoundError:
     hugchat = None
 
 from engine.command import speak
-from engine.config import ASSISTANT_NAME
+from engine.config import ASSISTANT_NAME, PORCUPINE_ACCESS_KEY
 from engine.helper import extract_yt_term, remove_words
 from engine.init_db import DB_PATH, init_database
 
 init_database()
-con = sqlite3.connect(DB_PATH)
-cursor = con.cursor()
+
+
+def _get_cursor():
+    """Return a fresh connection and cursor. Caller must close the connection."""
+    con = sqlite3.connect(DB_PATH)
+    return con, con.cursor()
 
 START_SOUND = os.path.join("www", "assets", "audio", "start_sound.mp3")
 
@@ -79,9 +83,10 @@ def openCommand(query):
     if not app_name:
         return
 
+    con, cursor = _get_cursor()
     try:
         cursor.execute(
-            "SELECT path FROM sys_command WHERE name IN (?)", (app_name,)
+            "SELECT path FROM sys_command WHERE LOWER(name) = ?", (app_name,)
         )
         results = cursor.fetchall()
 
@@ -91,7 +96,7 @@ def openCommand(query):
             return
 
         cursor.execute(
-            "SELECT url FROM web_command WHERE name IN (?)", (app_name,)
+            "SELECT url FROM web_command WHERE LOWER(name) = ?", (app_name,)
         )
         results = cursor.fetchall()
 
@@ -104,6 +109,8 @@ def openCommand(query):
         os.system("start " + app_name)
     except Exception:
         speak("Something went wrong")
+    finally:
+        con.close()
 
 
 def PlayYoutube(query):
@@ -125,11 +132,21 @@ def hotword():
     paud = None
     audio_stream = None
     if pvporcupine is None or pyaudio is None:
-        print("Hotword dependencies are missing; skipping hotword listener")
+        print("[Hotword] Dependencies missing (pvporcupine/pyaudio). Hotword listener disabled.")
+        return
+
+    # Porcupine requires an access key from https://console.picovoice.ai/
+    access_key = PORCUPINE_ACCESS_KEY
+    if not access_key:
+        print(
+            "[Hotword] PORCUPINE_ACCESS_KEY not set in environment variables. "
+            "Get a free key at https://console.picovoice.ai/ and set it. "
+            "Hotword listener disabled."
+        )
         return
 
     try:
-        porcupine = pvporcupine.create(keywords=["jarvis", "alexa"])
+        porcupine = pvporcupine.create(access_key=access_key, keywords=["jarvis", "alexa"])
         paud = pyaudio.PyAudio()
         audio_stream = paud.open(
             rate=porcupine.sample_rate,
@@ -139,20 +156,21 @@ def hotword():
             frames_per_buffer=porcupine.frame_length,
         )
 
+        print("[Hotword] Listening for wake word...")
         while True:
             keyword = audio_stream.read(porcupine.frame_length)
             keyword = struct.unpack_from("h" * porcupine.frame_length, keyword)
             keyword_index = porcupine.process(keyword)
 
             if keyword_index >= 0:
-                print("hotword detected")
+                print("[Hotword] Wake word detected!")
                 if pyautogui is not None:
                     pyautogui.keyDown("win")
                     pyautogui.press("j")
                     time.sleep(2)
                     pyautogui.keyUp("win")
     except Exception as exc:
-        print(f"Hotword listener stopped: {exc}")
+        print(f"[Hotword] Listener stopped: {exc}")
     finally:
         if porcupine is not None:
             porcupine.delete()
@@ -177,6 +195,7 @@ def findContact(query):
     ]
     query = remove_words(query, words_to_remove)
 
+    con, cursor = _get_cursor()
     try:
         query = query.strip().lower()
         cursor.execute(
@@ -193,6 +212,8 @@ def findContact(query):
     except Exception:
         speak("Contact not found")
         return 0, 0
+    finally:
+        con.close()
 
 
 def whatsApp(mobile_no, message, flag, name):

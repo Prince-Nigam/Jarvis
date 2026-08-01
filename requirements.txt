@@ -13,3 +13,4 @@ bottle
 bottle-websocket
 gevent
 gevent-websocket
+psutil

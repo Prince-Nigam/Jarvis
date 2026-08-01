@@ -1,5 +1,23 @@
-/envjarvis
-contacts.csv
+# Virtual environments
+/envJarvis
+/.venv
+
+# Databases (auto-generated)
 jarvis.db
-/engine/__pycache__
+Database.db
+
+# Private data
+contacts.csv
 /engine/cookies.json
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+/engine/__pycache__
+
+# VS Code temp files
+tempCodeRunnerFile.py
+
+# Face auth trained model (large binary)
+/engine/auth/trainer/trainer.yml
