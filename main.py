@@ -117,6 +117,27 @@ def api_listen():
         text = ""
     return jsonify({"text": text})
 
+# ── Activate API (force wake from browser mic button) ─────────────────────────
+@app.route("/api/activate", methods=["POST"])
+def api_activate():
+    try:
+        from engine.hotword import force_activate, is_active
+        if not is_active():
+            force_activate()
+        return jsonify({"ok": True, "active": True})
+    except Exception as e:
+        print(f"[activate] {e}")
+        return jsonify({"ok": False, "error": str(e)})
+
+# ── Status API ─────────────────────────────────────────────────────────────────
+@app.route("/api/status")
+def api_status():
+    try:
+        from engine.hotword import is_active
+        return jsonify({"active": is_active(), "ok": True})
+    except Exception:
+        return jsonify({"active": False, "ok": True})
+
 # ── Auth API ───────────────────────────────────────────────────────────────────
 @app.route("/api/auth", methods=["POST"])
 def api_auth():

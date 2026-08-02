@@ -147,21 +147,370 @@ def run_command(query):
 
     response = ""
     try:
+        from engine import desktop_control as dc
 
-        # ── Open app / website ─────────────────────────────────────────────
-        if "open" in query:
+        # ══════════════════════════════════════════════════════════
+        #  WINDOW MANAGEMENT
+        # ══════════════════════════════════════════════════════════
+
+        if any(k in query for k in ("minimize window", "minimise window", "window minimize")):
+            dc.minimize_window()
+            response = "Window minimized"
+
+        elif any(k in query for k in ("maximize window", "maximise window", "window maximize", "full screen")):
+            dc.maximize_window()
+            response = "Window maximized"
+
+        elif any(k in query for k in ("close window", "close this", "window close")):
+            dc.close_window()
+            response = "Window closed"
+
+        elif any(k in query for k in ("switch window", "alt tab", "change window")):
+            dc.switch_window()
+            response = "Switching window"
+
+        elif any(k in query for k in ("show desktop", "hide all", "minimize all")):
+            dc.show_desktop()
+            response = "Showing desktop"
+
+        elif any(k in query for k in ("snap left", "window left")):
+            dc.snap_left()
+            response = "Snapped to left"
+
+        elif any(k in query for k in ("snap right", "window right")):
+            dc.snap_right()
+            response = "Snapped to right"
+
+        elif any(k in query for k in ("task view", "virtual desktop", "show all windows")):
+            dc.open_task_view()
+            response = "Task view opened"
+
+        # ══════════════════════════════════════════════════════════
+        #  MEDIA CONTROL
+        # ══════════════════════════════════════════════════════════
+
+        elif any(k in query for k in ("play music", "pause music", "play pause", "resume music")):
+            dc.media_play_pause()
+            response = "Play/Pause toggled"
+
+        elif any(k in query for k in ("next song", "next track", "skip song", "next music")):
+            dc.media_next()
+            response = "Next track"
+
+        elif any(k in query for k in ("previous song", "prev song", "last song", "previous track")):
+            dc.media_previous()
+            response = "Previous track"
+
+        elif "stop music" in query or "stop media" in query:
+            dc.media_stop()
+            response = "Media stopped"
+
+        elif "volume up" in query or "increase volume" in query or "louder" in query:
+            dc.volume_up()
+            response = "Volume increased"
+
+        elif "volume down" in query or "decrease volume" in query or "lower volume" in query or "quieter" in query:
+            dc.volume_down()
+            response = "Volume decreased"
+
+        elif "mute" in query:
+            dc.mute_volume()
+            response = "Muted"
+
+        # ══════════════════════════════════════════════════════════
+        #  KEYBOARD SHORTCUTS
+        # ══════════════════════════════════════════════════════════
+
+        elif "copy" in query and "open" not in query:
+            dc.copy()
+            response = "Copied"
+
+        elif "paste" in query:
+            dc.paste()
+            response = "Pasted"
+
+        elif "cut" in query and "open" not in query:
+            dc.cut()
+            response = "Cut"
+
+        elif any(k in query for k in ("undo", "go back one step")):
+            dc.undo()
+            response = "Undo done"
+
+        elif "redo" in query:
+            dc.redo()
+            response = "Redo done"
+
+        elif "select all" in query:
+            dc.select_all()
+            response = "Selected all"
+
+        elif any(k in query for k in ("save file", "save this", "ctrl s")):
+            dc.save_file()
+            response = "Saved"
+
+        elif any(k in query for k in ("new tab", "open tab")):
+            dc.new_tab()
+            response = "New tab opened"
+
+        elif any(k in query for k in ("close tab", "close current tab")):
+            dc.close_tab()
+            response = "Tab closed"
+
+        elif any(k in query for k in ("refresh", "reload page", "reload")):
+            dc.refresh_page()
+            response = "Refreshed"
+
+        elif any(k in query for k in ("go back", "browser back", "previous page")):
+            dc.go_back()
+            response = "Going back"
+
+        elif any(k in query for k in ("go forward", "browser forward", "next page")):
+            dc.go_forward()
+            response = "Going forward"
+
+        elif any(k in query for k in ("zoom in", "increase zoom")):
+            dc.zoom_in()
+            response = "Zoomed in"
+
+        elif any(k in query for k in ("zoom out", "decrease zoom")):
+            dc.zoom_out()
+            response = "Zoomed out"
+
+        elif any(k in query for k in ("find on page", "search on page", "ctrl f")):
+            dc.find_on_page()
+            response = "Find opened"
+
+        elif any(k in query for k in ("new window", "open new window")):
+            dc.open_new_window()
+            response = "New window opened"
+
+        elif any(k in query for k in ("press enter", "hit enter", "enter")):
+            dc.press_enter()
+            response = "Enter pressed"
+
+        elif any(k in query for k in ("press escape", "escape", "cancel")):
+            dc.press_escape()
+            response = "Escaped"
+
+        # ══════════════════════════════════════════════════════════
+        #  SCROLL
+        # ══════════════════════════════════════════════════════════
+
+        elif any(k in query for k in ("scroll down", "page down", "move down")):
+            dc.scroll_down()
+            response = "Scrolled down"
+
+        elif any(k in query for k in ("scroll up", "page up", "move up")):
+            dc.scroll_up()
+            response = "Scrolled up"
+
+        # ══════════════════════════════════════════════════════════
+        #  SCREENSHOT
+        # ══════════════════════════════════════════════════════════
+
+        elif any(k in query for k in ("screenshot", "take screenshot", "capture screen", "screen capture")):
+            dc.take_screenshot()
+            response = "Screenshot saved to Desktop"
+
+        # ══════════════════════════════════════════════════════════
+        #  TYPE TEXT
+        # ══════════════════════════════════════════════════════════
+
+        elif query.startswith("type "):
+            text_to_type = query[5:].strip()
+            if text_to_type:
+                dc.type_text(text_to_type)
+                response = f"Typed: {text_to_type}"
+            else:
+                speak("What should I type?")
+                text_to_type = takecommand()
+                if text_to_type:
+                    dc.type_text(text_to_type)
+                    response = f"Typed: {text_to_type}"
+
+        elif query.startswith("write "):
+            text_to_type = query[6:].strip()
+            if text_to_type:
+                dc.type_text(text_to_type)
+                response = f"Typed: {text_to_type}"
+
+        # ══════════════════════════════════════════════════════════
+        #  FOLDER / FILE OPERATIONS
+        # ══════════════════════════════════════════════════════════
+
+        elif any(k in query for k in ("open downloads", "downloads folder")):
+            dc.open_folder("downloads")
+            response = "Opening Downloads"
+
+        elif any(k in query for k in ("open desktop", "desktop folder")):
+            dc.open_folder("desktop")
+            response = "Opening Desktop"
+
+        elif any(k in query for k in ("open documents", "documents folder", "my documents")):
+            dc.open_folder("documents")
+            response = "Opening Documents"
+
+        elif any(k in query for k in ("open pictures", "pictures folder", "my pictures", "open photos")):
+            dc.open_folder("pictures")
+            response = "Opening Pictures"
+
+        elif any(k in query for k in ("open music", "music folder", "my music")):
+            dc.open_folder("music")
+            response = "Opening Music"
+
+        elif any(k in query for k in ("open videos", "videos folder", "my videos")):
+            dc.open_folder("videos")
+            response = "Opening Videos"
+
+        elif any(k in query for k in ("open c drive", "open c:", "c drive")):
+            dc.open_folder("c drive")
+            response = "Opening C Drive"
+
+        elif any(k in query for k in ("open d drive", "open d:", "d drive")):
+            dc.open_folder("d drive")
+            response = "Opening D Drive"
+
+        elif any(k in query for k in ("my computer", "this pc", "open my computer", "open this pc")):
+            dc.open_folder("this pc")
+            response = "Opening This PC"
+
+        elif any(k in query for k in ("recycle bin", "open recycle bin")):
+            dc.open_folder("recycle bin")
+            response = "Opening Recycle Bin"
+
+        elif any(k in query for k in ("empty recycle bin", "clear recycle bin", "delete recycle bin")):
+            dc.empty_recycle_bin()
+            response = "Recycle bin emptied"
+
+        # ══════════════════════════════════════════════════════════
+        #  SYSTEM ACTIONS
+        # ══════════════════════════════════════════════════════════
+
+        elif any(k in query for k in ("lock screen", "lock computer", "lock laptop", "lock pc")):
+            dc.lock_screen()
+            response = "Screen locked"
+
+        elif any(k in query for k in ("sleep", "go to sleep", "hibernate")):
+            dc.sleep_system()
+            response = "Going to sleep"
+
+        elif any(k in query for k in ("task manager", "open task manager", "process manager")):
+            dc.open_task_manager()
+            response = "Opening Task Manager"
+
+        elif any(k in query for k in ("open settings", "windows settings", "system settings")):
+            dc.open_settings()
+            response = "Opening Settings"
+
+        elif any(k in query for k in ("run dialog", "open run", "win r")):
+            dc.open_run_dialog()
+            response = "Run dialog opened"
+
+        elif any(k in query for k in ("windows search", "open search", "search bar")):
+            dc.open_search()
+            response = "Search opened"
+
+        elif any(k in query for k in ("notification", "action center", "notifications")):
+            dc.open_notification_center()
+            response = "Notification center opened"
+
+        elif any(k in query for k in ("clipboard", "clipboard history", "win v")):
+            dc.open_clipboard_history()
+            response = "Clipboard history opened"
+
+        elif any(k in query for k in ("virtual keyboard", "on screen keyboard", "osk")):
+            dc.virtual_keyboard()
+            response = "Virtual keyboard opened"
+
+        elif any(k in query for k in ("magnifier", "zoom screen")):
+            dc.open_magnifier()
+            response = "Magnifier opened"
+
+        elif "shutdown" in query:
+            speak("For safety, please shutdown manually.")
+            response = "Please shutdown manually for safety."
+
+        elif "restart" in query:
+            speak("For safety, please restart manually.")
+            response = "Please restart manually for safety."
+
+        # ══════════════════════════════════════════════════════════
+        #  BRIGHTNESS
+        # ══════════════════════════════════════════════════════════
+
+        elif any(k in query for k in ("brightness up", "increase brightness", "brighter")):
+            dc.brightness_up()
+            response = "Brightness increased"
+
+        elif any(k in query for k in ("brightness down", "decrease brightness", "darker", "dim screen")):
+            dc.brightness_down()
+            response = "Brightness decreased"
+
+        elif "brightness" in query:
+            # Extract number: "set brightness to 70"
+            import re
+            nums = re.findall(r'\d+', query)
+            if nums:
+                dc.set_brightness(int(nums[0]))
+                response = f"Brightness set to {nums[0]}%"
+            else:
+                speak("Please say brightness level from 0 to 100")
+                response = "Brightness level not clear"
+
+        # ══════════════════════════════════════════════════════════
+        #  SEARCH (Google / YouTube)
+        # ══════════════════════════════════════════════════════════
+
+        elif "search google" in query or "google search" in query:
+            term = query.replace("search google for", "").replace(
+                "search google", "").replace("google search", "").strip()
+            if term:
+                dc.search_google(term)
+                response = f"Searching Google for {term}"
+            else:
+                speak("What should I search?")
+                term = takecommand()
+                if term:
+                    dc.search_google(term)
+                    response = f"Searching Google for {term}"
+
+        elif "search youtube" in query or "youtube search" in query:
+            term = query.replace("search youtube for", "").replace(
+                "search youtube", "").replace("youtube search", "").strip()
+            if term:
+                dc.search_youtube(term)
+                response = f"Searching YouTube for {term}"
+            else:
+                speak("What should I search on YouTube?")
+                term = takecommand()
+                if term:
+                    dc.search_youtube(term)
+                    response = f"Searching YouTube for {term}"
+
+        # ══════════════════════════════════════════════════════════
+        #  OPEN APP / WEBSITE
+        # ══════════════════════════════════════════════════════════
+
+        elif "open" in query:
             from engine.features import openCommand
             app = query.replace("open", "").strip()
             openCommand(query)
-            response = f"Opening {app}"
+            response = f"Opening {app}" if app else "Opening"
 
-        # ── YouTube ────────────────────────────────────────────────────────
+        # ══════════════════════════════════════════════════════════
+        #  YOUTUBE PLAY
+        # ══════════════════════════════════════════════════════════
+
         elif "on youtube" in query:
             from engine.features import PlayYoutube
             PlayYoutube(query)
             response = "Playing on YouTube"
 
-        # ── Contacts / WhatsApp ────────────────────────────────────────────
+        # ══════════════════════════════════════════════════════════
+        #  CONTACTS / WHATSAPP
+        # ══════════════════════════════════════════════════════════
+
         elif any(k in query for k in ("send message", "phone call", "video call")):
             from engine.features import findContact, makeCall, sendMessage, whatsApp
             contact_no, name = findContact(query)
@@ -184,76 +533,42 @@ def run_command(query):
                 response = "Contact not found"
                 speak(response)
 
-        # ── Time ───────────────────────────────────────────────────────────
+        # ══════════════════════════════════════════════════════════
+        #  TIME / DATE
+        # ══════════════════════════════════════════════════════════
+
         elif "time" in query:
             from datetime import datetime
             t = datetime.now().strftime("%I:%M %p")
             response = f"The current time is {t}"
             speak(response)
 
-        # ── Date ───────────────────────────────────────────────────────────
         elif "date" in query:
             from datetime import datetime
             d = datetime.now().strftime("%B %d, %Y")
             response = f"Today is {d}"
             speak(response)
 
-        # ── Greetings ──────────────────────────────────────────────────────
+        # ══════════════════════════════════════════════════════════
+        #  GREETINGS / IDENTITY
+        # ══════════════════════════════════════════════════════════
+
         elif any(k in query for k in ("hello", "hi ", " hi", "hey")):
             response = "Hello Sir! How can I assist you?"
             speak(response)
 
-        # ── Identity ───────────────────────────────────────────────────────
         elif "your name" in query or "who are you" in query:
             response = "I am Jarvis, your personal AI assistant."
             speak(response)
 
-        # ── Joke ───────────────────────────────────────────────────────────
         elif "joke" in query:
             response = "Why do programmers prefer dark mode? Because light attracts bugs!"
             speak(response)
 
-        # ── Screenshot ─────────────────────────────────────────────────────
-        elif "screenshot" in query:
-            try:
-                import pyautogui
-                pyautogui.screenshot("screenshot.png")
-                response = "Screenshot saved"
-                speak(response)
-            except Exception:
-                response = "Screenshot not available"
+        # ══════════════════════════════════════════════════════════
+        #  CHATBOT FALLBACK
+        # ══════════════════════════════════════════════════════════
 
-        # ── Volume ─────────────────────────────────────────────────────────
-        elif "volume up" in query:
-            try:
-                import pyautogui
-                pyautogui.press("volumeup", presses=5)
-                response = "Volume increased"
-            except Exception:
-                response = "Could not change volume"
-
-        elif "volume down" in query:
-            try:
-                import pyautogui
-                pyautogui.press("volumedown", presses=5)
-                response = "Volume decreased"
-            except Exception:
-                response = "Could not change volume"
-
-        elif "mute" in query:
-            try:
-                import pyautogui
-                pyautogui.press("volumemute")
-                response = "Muted"
-            except Exception:
-                response = "Could not mute"
-
-        # ── Safety ─────────────────────────────────────────────────────────
-        elif "shutdown" in query or "restart" in query:
-            response = "Please do that manually for safety."
-            speak(response)
-
-        # ── Chatbot fallback ───────────────────────────────────────────────
         else:
             from engine.features import chatBot
             response = chatBot(query) or f"I heard: {query}"
