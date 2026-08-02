@@ -164,19 +164,36 @@ def _listen_for_wake_word():
 
 
 def _handle_post_wake():
-    """After wake word, listen for a command and execute it."""
+    """After wake word, listen for command, execute it, push response to browser."""
     try:
         from engine.command import takecommand, run_command, speak
         speak("Yes Sir, how can I help you?")
-        time.sleep(0.5)
+
+        # Push "listening" status to browser via API
+        try:
+            import urllib.request, json as _json
+            _push = lambda path, body: urllib.request.urlopen(
+                urllib.request.Request(
+                    f"http://localhost:{_jarvis_port}{path}",
+                    data=_json.dumps(body).encode(),
+                    headers={"Content-Type": "application/json"},
+                    method="POST"
+                ), timeout=3
+            )
+        except Exception:
+            _push = None
+
+        time.sleep(1.2)  # wait for TTS to finish saying "Yes Sir"
+
         query = takecommand()
-        if query:
+        if query and query.strip():
             print(f"[HOTWORD] Command: {query}")
             response = run_command(query)
             if response:
                 print(f"[HOTWORD] Response: {response}")
         else:
             speak("I didn't catch that. Please try again.")
+
     except Exception as e:
         print(f"[HOTWORD] Post-wake error: {e}")
 

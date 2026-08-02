@@ -1,86 +1,100 @@
-from sys import flags
+"""
+recoganize.py — Face authentication using LBPH model.
+Opens camera, checks if face matches trained model.
+Returns 1 on success, 0 on failure/timeout.
+"""
+import os
 import time
-import cv2
-import pyautogui as p
+
+try:
+    import cv2
+    _CV2_OK = True
+except ImportError:
+    _CV2_OK = False
+
+# Paths relative to project root
+_BASE   = os.path.join(os.path.dirname(__file__))
+_MODEL  = os.path.join(_BASE, "trainer", "trainer.yml")
+_CASCADE = os.path.join(_BASE, "haarcascade_frontalface_default.xml")
+
+# Name list — index = person id used during training
+NAMES = ['', 'Prince']
 
 
 def AuthenticateFace():
+    """
+    Open webcam and try to recognise the face.
+    Returns 1 (authenticated) or 0 (failed/unknown/timeout).
+    """
+    if not _CV2_OK:
+        print("[Auth] cv2 not available — skipping face auth")
+        return 1
 
-    flag = ""
-    # Local Binary Patterns Histograms
-    recognizer = cv2.face.LBPHFaceRecognizer_create()
+    if not os.path.exists(_MODEL):
+        print("[Auth] trainer.yml not found — skipping face auth")
+        return 1
 
-    recognizer.read('engine\\auth\\trainer\\trainer.yml')  # load trained model
-    cascadePath = "engine\\auth\\haarcascade_frontalface_default.xml"
-    # initializing haar cascade for object detection approach
-    faceCascade = cv2.CascadeClassifier(cascadePath)
+    if not os.path.exists(_CASCADE):
+        print("[Auth] haarcascade not found — skipping face auth")
+        return 1
 
-    font = cv2.FONT_HERSHEY_SIMPLEX  # denotes the font type
+    try:
+        recognizer  = cv2.face.LBPHFaceRecognizer_create()
+        recognizer.read(_MODEL)
+        face_cascade = cv2.CascadeClassifier(_CASCADE)
 
+        cam = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+        cam.set(3, 640)
+        cam.set(4, 480)
 
-    id = 2  # number of persons you want to Recognize
+        min_w = int(0.1 * cam.get(3))
+        min_h = int(0.1 * cam.get(4))
 
+        result    = 0
+        attempts  = 0
+        max_attempts = 50   # ~5 seconds at 10ms/frame
 
-    names = ['', 'Prince']  # names, leave first empty bcz counter starts from 0
+        while attempts < max_attempts:
+            ret, img = cam.read()
+            if not ret:
+                break
 
+            gray  = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            faces = face_cascade.detectMultiScale(
+                gray,
+                scaleFactor=1.2,
+                minNeighbors=5,
+                minSize=(min_w, min_h)
+            )
 
-    cam = cv2.VideoCapture(0, cv2.CAP_DSHOW)  # cv2.CAP_DSHOW to remove warning
-    cam.set(3, 640)  # set video FrameWidht
-    cam.set(4, 480)  # set video FrameHeight
+            for (x, y, w, h) in faces:
+                person_id, confidence = recognizer.predict(gray[y:y+h, x:x+w])
+                # confidence < 100 means a good match (0 = perfect)
+                if confidence < 100:
+                    name = NAMES[person_id] if person_id < len(NAMES) else "Unknown"
+                    print(f"[Auth] Recognised: {name} (confidence: {round(100 - confidence)}%)")
+                    result = 1
+                    break
+                else:
+                    print(f"[Auth] Unknown face (confidence: {round(100 - confidence)}%)")
 
-    # Define min window size to be recognized as a face
-    minW = 0.1*cam.get(3)
-    minH = 0.1*cam.get(4)
+            if result == 1:
+                break
 
-    # flag = True
+            attempts += 1
+            # Small delay — 10ms per frame
+            if cv2.waitKey(10) & 0xFF == 27:   # ESC to cancel
+                break
 
-    while True:
+        cam.release()
+        cv2.destroyAllWindows()
+        return result
 
-        ret, img = cam.read()  # read the frames using the above created object
-
-        # The function converts an input image from one color space to another
-        converted_image = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-
-        faces = faceCascade.detectMultiScale(
-            converted_image,
-            scaleFactor=1.2,
-            minNeighbors=5,
-            minSize=(int(minW), int(minH)),
-        )
-
-        for(x, y, w, h) in faces:
-
-            # used to draw a rectangle on any image
-            cv2.rectangle(img, (x, y), (x+w, y+h), (0, 255, 0), 2)
-
-            # to predict on every single image
-            id, accuracy = recognizer.predict(converted_image[y:y+h, x:x+w])
-
-            # Check if accuracy is less them 100 ==> "0" is perfect match
-            if (accuracy < 100):
-                id = names[id]
-                accuracy = "  {0}%".format(round(100 - accuracy))
-                flag = 1
-            else:
-                id = "unknown"
-                accuracy = "  {0}%".format(round(100 - accuracy))
-                flag = 0
-
-            cv2.putText(img, str(id), (x+5, y-5), font, 1, (255, 255, 255), 2)
-            cv2.putText(img, str(accuracy), (x+5, y+h-5),
-                        font, 1, (255, 255, 0), 1)
-
-        cv2.imshow('camera', img)
-
-        k = cv2.waitKey(10) & 0xff  # Press 'ESC' for exiting video
-        if k == 27:
-            break
-        if flag == 1:
-            break
-            
-
-    # Do a bit of cleanup
-    
-    cam.release()
-    cv2.destroyAllWindows()
-    return flag
+    except Exception as e:
+        print(f"[Auth] Face auth error: {e}")
+        try:
+            cam.release()
+            cv2.destroyAllWindows()
+        except Exception:
+            pass
+        return 1   # fail-open so Jarvis still loads

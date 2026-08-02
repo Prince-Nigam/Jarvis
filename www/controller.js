@@ -68,30 +68,20 @@ $(document).ready(function () {
                 if (typeof window.startSysStatPolling === 'function') {
                     window.startSysStatPolling();
                 }
-                // Call backend greeting API (TTS speak + sound effect)
+                // Greet on dashboard load
                 fetch('/api/greet', { method: 'POST' })
                     .then(function (r) { return r.json(); })
                     .then(function (res) {
                         if (res && res.message) {
-                            if (typeof window.DisplayMessage === 'function') {
-                                window.DisplayMessage(res.message);
-                            }
+                            // Show greeting in the response bar
+                            var lr = document.getElementById('lastResponse');
+                            if (lr) lr.textContent = '↳ ' + res.message;
+                            var jr = document.getElementById('jarvisResponse');
+                            if (jr) jr.textContent = res.message;
                         }
                     })
-                    .catch(function () {
-                        // Fallback browser Web Speech API if server unreachable
-                        if ('speechSynthesis' in window) {
-                            var utter = new SpeechSynthesisUtterance('Good day Sir. Jarvis at your service.');
-                            window.speechSynthesis.speak(utter);
-                        }
-                    });
+                    .catch(function () {});
 
-                // Hands-Free Auto Voice Mode: Start listening automatically 3 seconds after boot!
-                setTimeout(function () {
-                    if ($('#MicBtn').length) {
-                        $('#MicBtn').trigger('click');
-                    }
-                }, 3000);
             });
             if (typeof window.initFileBrowser === 'function') {
                 window.initFileBrowser();

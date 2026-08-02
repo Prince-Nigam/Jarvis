@@ -15,7 +15,7 @@ $(document).ready(function () {
         }
     } catch (e) {}
 
-    // ── Text animations ────────────────────────────────────────────────────
+    // ── Text animations (only on WishMessage, not response) ───────────────
     try {
         $('.text').textillate({
             loop: true, sync: true,
@@ -23,13 +23,8 @@ $(document).ready(function () {
         });
     } catch (e) {}
 
-    try {
-        $('.siri-message').textillate({
-            loop: true, sync: true,
-            in:  { effect: 'fadeInUp',  sync: true },
-            out: { effect: 'fadeOutUp', sync: true }
-        });
-    } catch (e) {}
+    // NOTE: We do NOT apply textillate to .siri-message because it hides
+    // the response text. We set it directly via jQuery .text()
 
     // ── Greeting ───────────────────────────────────────────────────────────
     var hour  = new Date().getHours();
@@ -42,11 +37,11 @@ $(document).ready(function () {
 
     // ── Helpers ────────────────────────────────────────────────────────────
     function showAssistantText(msg) {
-        if (msg && msg.trim()) {
-            try { $('.siri-message').textillate('stop'); } catch(e) {}
-            $('.siri-message').text(msg);
-            try { $('.siri-message').textillate('start'); } catch(e) {}
-        }
+        if (!msg || !msg.trim()) return;
+        // SiriWave section response text
+        $('#jarvisResponse').text(msg);
+        // Oval (idle) section — shows last response below sphere
+        $('#lastResponse').text('↳ ' + msg);
     }
 
     function buildFallbackReply(message) {
