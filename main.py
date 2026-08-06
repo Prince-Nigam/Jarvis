@@ -184,7 +184,7 @@ def start():
     port = _find_free_port()
     print(f"\n{'='*50}")
     print(f"  J.A.R.V.I.S  http://127.0.0.1:{port}")
-    print(f"  Say 'Hey Jarvis' / 'Wakeup Jarvis' anytime")
+    print(f"  Listen kar raha hoon — sirf boliye 'Wakeup Jarvish'")
     print(f"{'='*50}\n")
 
     # Window manager port
@@ -199,12 +199,13 @@ def start():
         from engine.hotword import start as start_hotword, set_port
         set_port(port)
         start_hotword()
-        print("[Jarvis] Hotword listener active")
+        print("[Jarvis] Background listener active — tab 'Wakeup Jarvish' boliye tabhi online hoga")
     except Exception as e:
         print(f"[Jarvis] Hotword failed: {e}")
 
-    # Open browser
-    threading.Timer(1.5, _open_browser, args=[port]).start()
+    # NOTE: Startup mein auto browser NAHI kholenge.
+    # Sirf user jab "wakeup jarvish" bolega tabhi window + TTS trigger hoga
+    # (user ka requirement: bina kuch kare sirf bol ke activate)
 
     app.run(host="127.0.0.1", port=port, debug=False, threaded=True)
 
