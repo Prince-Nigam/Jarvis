@@ -1,6 +1,7 @@
 eel
 pyttsx3
 SpeechRecognition
+PyAudio
 playsound==1.2.2
 pyautogui
 pywhatkit
@@ -14,3 +15,5 @@ bottle-websocket
 gevent
 gevent-websocket
 psutil
+flask
+flask-cors

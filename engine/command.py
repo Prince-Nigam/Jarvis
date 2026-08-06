@@ -68,14 +68,35 @@ _ensure_tts_worker()
 try:
     import speech_recognition as sr
     _recognizer = sr.Recognizer()
-    _recognizer.pause_threshold          = 1
-    _recognizer.energy_threshold         = 300
+    _recognizer.pause_threshold          = 0.8
+    _recognizer.energy_threshold         = 80
     _recognizer.dynamic_energy_threshold = True
+    _recognizer.operation_timeout        = 10
     _HAS_SR = True
 except (ModuleNotFoundError, Exception):
     sr = None
     _recognizer = None
     _HAS_SR = False
+
+
+def _recognize_multi_lang(audio) -> str:
+    """en-IN → hi-IN → en-US multi-language fallback for commands."""
+    last_err = None
+    for lang in ("en-IN", "hi-IN", "en-US"):
+        try:
+            text = sr.Recognizer().recognize_google(audio, language=lang)
+            if text and text.strip():
+                return text
+        except sr.UnknownValueError as e:
+            last_err = e
+        except sr.RequestError as e:
+            last_err = e
+            break
+        except Exception as e:
+            last_err = e
+    if last_err is not None:
+        raise last_err
+    raise sr.UnknownValueError()
 
 
 # ── Public API ─────────────────────────────────────────────────────────────────
@@ -97,7 +118,7 @@ def speak(text):
 def takecommand():
     """
     Listen via microphone, return recognised text (lowercase).
-    Returns '' on any failure.
+    Returns '' on any failure. Uses multi-language recognition (en-IN, hi-IN, en-US).
     """
     if not _HAS_SR or _recognizer is None:
         print("[SR] speech_recognition not available")
@@ -107,25 +128,25 @@ def takecommand():
         with sr.Microphone() as source:
             print("[MIC] Adjusting for noise...")
             _recognizer.adjust_for_ambient_noise(source, duration=0.5)
-            print("[MIC] Listening...")
-            audio = _recognizer.listen(source, timeout=8, phrase_time_limit=8)
+            print(f"[MIC] Listening (energy={_recognizer.energy_threshold:.0f})...")
+            audio = _recognizer.listen(source, timeout=8, phrase_time_limit=10)
     except sr.WaitTimeoutError:
         print("[MIC] Timeout — no speech")
         return ""
     except OSError as e:
-        print(f"[MIC] Error: {e}")
+        print(f"[MIC] ❌ Microphone error (device busy?): {e}")
         return ""
     except Exception as e:
         print(f"[MIC] Unexpected: {e}")
         return ""
 
     try:
-        print("[SR] Recognizing...")
-        query = _recognizer.recognize_google(audio, language="en-in")
+        print("[SR] Recognizing (en-IN → hi-IN → en-US)...")
+        query = _recognize_multi_lang(audio)
         print(f"[USER]: {query}")
         return query.lower()
     except sr.UnknownValueError:
-        print("[SR] Could not understand")
+        print("[SR] Could not understand (silence/unintelligible)")
         return ""
     except sr.RequestError as e:
         print(f"[SR] API error: {e}")

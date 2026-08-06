@@ -1,0 +1,2 @@
+{"sessionId": "wakeup-jarvish-no-response", "runId": "post-fix", "hypothesisId": "A", "location": "hotword.py", "msg": "[DEBUG] wake_loop_thread_ENTERED", "data": {"iter": 1, "sr_available": true, "listening_flag": true}, "ts": 1786034990165}
+{"sessionId": "wakeup-jarvish-no-response", "runId": "post-fix", "hypothesisId": "A", "location": "hotword.py", "msg": "[DEBUG] hotword_start_called_thread_started", "data": {"iter": 2, "listening_flag": true, "thread_alive": true, "thread_name": "hotword-wake-listener"}, "ts": 1786034990167}

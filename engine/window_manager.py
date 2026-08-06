@@ -9,6 +9,13 @@ import time
 
 EDGE_PATH = r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
 
+_jarvis_port = 8000
+
+
+def set_port(port):
+    global _jarvis_port
+    _jarvis_port = port
+
 
 def _force_window_to_front():
     """Scan all windows, restore & bring Jarvis to front using Win32."""
@@ -16,6 +23,8 @@ def _force_window_to_front():
         return
     try:
         user32 = ctypes.windll.user32
+        port_str_1 = f"127.0.0.1:{_jarvis_port}"
+        port_str_2 = f"localhost:{_jarvis_port}"
 
         def enum_callback(hwnd, extra):
             length = user32.GetWindowTextLengthW(hwnd)
@@ -23,10 +32,9 @@ def _force_window_to_front():
                 buff = ctypes.create_unicode_buffer(length + 1)
                 user32.GetWindowTextW(hwnd, buff, length + 1)
                 title = buff.value.lower()
-                if "jarvis" in title or "127.0.0.1:8000" in title or "localhost:8000" in title:
+                if "jarvis" in title or port_str_1 in title or port_str_2 in title:
                     user32.ShowWindow(hwnd, 9)   # SW_RESTORE
                     user32.ShowWindow(hwnd, 5)   # SW_SHOW
-                    # HWND_TOPMOST then HWND_NOTOPMOST trick
                     user32.SetWindowPos(hwnd, -1, 0, 0, 0, 0, 0x0001 | 0x0002)
                     user32.SetWindowPos(hwnd, -2, 0, 0, 0, 0, 0x0001 | 0x0002)
                     fg = user32.GetForegroundWindow()

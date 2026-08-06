@@ -187,6 +187,13 @@ def start():
     print(f"  Say 'Hey Jarvis' / 'Wakeup Jarvis' anytime")
     print(f"{'='*50}\n")
 
+    # Window manager port
+    try:
+        from engine.window_manager import set_port as set_window_port
+        set_window_port(port)
+    except Exception:
+        pass
+
     # Hotword listener
     try:
         from engine.hotword import start as start_hotword, set_port
