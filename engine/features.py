@@ -64,8 +64,11 @@ def playAssistantSound():
         print(f"Startup sound skipped: {exc}")
 
 
-if eel is not None:
-    eel.expose(playAssistantSound)
+try:
+    if eel is not None:
+        eel.expose(playAssistantSound)
+except Exception:
+    pass
 
 
 EDGE_PATH = r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"

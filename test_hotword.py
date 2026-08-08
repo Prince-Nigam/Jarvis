@@ -5,7 +5,7 @@ from engine.hotword import (
     WAKE_WORDS, SLEEP_WORDS,
     _contains_wake_word, _contains_sleep_word,
     start, stop, is_active, force_activate,
-    AUTO_SLEEP_SECONDS
+    IDLE_AUTO_SLEEP_SECONDS as AUTO_SLEEP_SECONDS
 )
 
 print("=" * 50)
@@ -24,13 +24,14 @@ print(f"\nAuto-sleep after: {AUTO_SLEEP_SECONDS} seconds")
 
 print("\n--- Wake word detection tests ---")
 wake_tests = [
-    ("jarvish", True),
-    ("hey jarvish", True),
-    ("ok jarvish", True),
-    ("hey jarvis", True),
-    ("jarvis open whatsapp", True),  # extra words ke saath bhi detect ho
-    ("open whatsapp", False),        # wake word nahi hai
-    ("hello", False),
+    ("wakeup jarvish", True),         # correct wake phrase
+    ("wake up jarvish", True),        # spaced variant
+    ("wake up jarvis", True),         # jarvis variant
+    ("wakeup jarvis", True),          # compact jarvis variant
+    ("jarvish", False),               # naam akela — sirf name trigger hai, wake word nahi
+    ("hey jarvish", False),           # hey + naam — wake word nahi (no "wakeup" prefix)
+    ("open whatsapp", False),         # wake word nahi hai
+    ("hello", False),                 # random word
 ]
 all_ok = True
 for text, expected in wake_tests:

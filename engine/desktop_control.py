@@ -495,7 +495,7 @@ def open_downloads():
 
 def open_developer_tools():
     if not _HAS_GUI: return
-    pyautogui.hotkey("f12")
+    pyautogui.press("f12")
     speak("Developer tools opened")
 
 def open_incognito():
@@ -1238,7 +1238,7 @@ def open_task_manager():
 def open_settings():
     """Open Windows Settings."""
     try:
-        subprocess.Popen(["ms-settings:"])
+        os.startfile("ms-settings:")
         speak("Opening Settings")
     except Exception:
         try:

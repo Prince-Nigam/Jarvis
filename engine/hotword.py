@@ -85,6 +85,13 @@ WAKE_WORDS = [
     "okay wake up jarvish",
     "oh wakeup jarvish",
     "the wakeup jarvish",
+    # ── "jarvish wakeup" order bhi kaam kare ──
+    "jarvish wakeup",
+    "jarvish wake up",
+    "jarvis wakeup",
+    "jarvis wake up",
+    "jarwish wakeup",
+    "jervish wakeup",
 ]
 
 _WAKE_SEEDS = []
@@ -106,21 +113,16 @@ _NAME_SEEDS = [
 ]
 
 # ── Sleep / Stop words (koi bhi level se deep sleep mein jao) ──
+# ── Sleep trigger — sirf "jarvish shutdown" se deep sleep ──
 SLEEP_WORDS = [
-    "stop", "sleep", "go to sleep", "goodbye", "bye",
-    "bye jarvis", "bye jarvish", "that's all", "thats all",
-    "ok stop", "jarvis stop", "jarvish stop",
-    "shutdown", "shut down", "shut it down",
-    "jarvis shutdown", "jarvish shutdown",
-    "jarvis shut down", "jarvish shut down",
-    "power off", "power off karo", "band kar do",
-    "bas karo", "bas kar", "band kar", "band karo",
-    "chup raho", "chup ho ja", "so jao", "so ja",
-    "roko", "ruk jao", "ruk ja",
-    "shutdown karo", "shutdown ho ja",
-    "shutdown ho jao", "shutdown kar do",
-    "shut down karo", "shut down kar do",
-    "shut down ho ja", "shut down ho jao",
+    "jarvish shutdown",
+    "jarvis shutdown",
+    "jarwish shutdown",
+    "jervish shutdown",
+    "hey jarvish shutdown",
+    "hey jarvis shutdown",
+    "ok jarvish shutdown",
+    "okay jarvish shutdown",
 ]
 
 # Level 1 idle mein itni silence ke baad auto deep sleep
@@ -200,14 +202,19 @@ def _fuzzy_ratio(a: str, b: str) -> float:
 def _contains_wake_word(text: str) -> bool:
     """
     LEVEL 0 — STRICT wake detector.
-    Sirf tab True jab DONO conditions hon:
-      1. "wake" type token ho (wake, wakeup, woke, wek)
-      2. "jarvish" type token ho (jarvish/jarvis/...)
-    Sirf "jarvish" akela ya "hey jarvis" — FALSE.
+    True jab:
+      - WAKE_WORDS mein koi phrase match ho, OR
+      - "wake/wakeup" token + "jarvish" token dono hon
     """
     text = text.lower().strip()
     if not text:
         return False
+
+    # ── Direct WAKE_WORDS list check (fastest path) ──────────────────────
+    for ww in WAKE_WORDS:
+        if ww in text:
+            return True
+
     words = [w.strip("?!.,;:") for w in text.split() if w.strip("?!.,;:")]
 
     def _has_wake_token(ws):
@@ -245,32 +252,18 @@ def _contains_wake_word(text: str) -> bool:
                         return True
         return False
 
-    if not _has_wake_token(words):
-        return False
-    if not _has_jarvish_token(words):
-        return False
+    # ── Token-level check: wake token + jarvish token dono chahiye ───────
+    if _has_wake_token(words) and _has_jarvish_token(words):
+        return True
 
-    for ww in WAKE_WORDS:
-        if ww in text:
-            return True
-
-    joined_pairs = []
-    for i in range(len(words) - 1):
-        joined_pairs.append(words[i] + words[i + 1])
-    for i in range(len(words) - 2):
-        joined_pairs.append(words[i] + words[i + 1] + words[i + 2])
-    for j in joined_pairs:
-        for seed in ("jarvish", "jarvis", "jarwish"):
-            if seed in j:
-                return True
-
-    if len(text) >= 10:
+    # ── Fuzzy full-phrase match ───────────────────────────────────────────
+    if len(text) >= 8:
         for ww in WAKE_WORDS:
             if " " in ww and abs(len(ww) - len(text)) <= 8:
                 if _fuzzy_ratio(text, ww) >= 0.70:
                     return True
 
-    return True
+    return False
 
 
 def _contains_name_trigger(text: str) -> bool:
@@ -315,29 +308,16 @@ def _contains_name_trigger(text: str) -> bool:
 
 
 def _contains_sleep_word(text: str) -> bool:
+    """
+    Sirf "jarvish shutdown" (aur variants) se True.
+    Koi aur phrase deep sleep trigger nahi karega.
+    """
     text = text.lower().strip()
     if not text:
         return False
-    words = text.split()
-
-    def _has_non_sleep_context(ws):
-        for w in ws:
-            if w in ("open", "show", "kholo", "khol", "dikhao", "dikhana",
-                     "start", "chalu", "launch", "dialog", "menu", "setting"):
-                return True
-        return False
-
-    if _has_non_sleep_context(words):
-        return False
-
     for sw in SLEEP_WORDS:
         if sw in text:
             return True
-    for w in text.split():
-        for sw in SLEEP_WORDS:
-            if " " not in sw and 3 <= len(w) <= 8 and 3 <= len(sw) <= 8:
-                if _fuzzy_ratio(w, sw) >= 0.78:
-                    return True
     return False
 
 
@@ -354,19 +334,18 @@ def _make_recognizer(energy=20, dynamic=True, pause=0.7):
     """
     HIGH SENSITIVITY recognizer — halki voice ko capture karega.
     - Very low energy threshold (20) → soft speech bhi detect hogi
-    - Dynamic energy with aggressive damping → noise ke saath adapt karega
+    - Dynamic energy OFF for wake loop (ON for command loop)
     - Longer pause (0.7s) → slow speech ko cut nahi karega
-    - Longer phrase threshold → chhote phrases miss nahi honge
     """
     r = sr.Recognizer()
     r.energy_threshold                     = energy
     r.dynamic_energy_threshold             = dynamic
     r.dynamic_energy_adjustment_damping    = 0.15
-    r.dynamic_energy_ratio                 = 1.3
+    r.dynamic_energy_ratio                 = 1.05   # was 1.3 — bahut slow badhega ab
     r.pause_threshold                      = pause
-    r.phrase_threshold                     = 0.1
-    r.non_speaking_duration                = 0.5
-    r.operation_timeout                    = 15
+    r.phrase_threshold                     = 0.05   # was 0.1 — chhoti phrases bhi catch hogi
+    r.non_speaking_duration                = 0.3    # was 0.5
+    r.operation_timeout                    = None   # no operation timeout
     return r
 
 
@@ -403,16 +382,16 @@ def _recognize_google_multi_lang(audio) -> str:
 
 def _idle_command_loop():
     """
-    3-Level State Machine (inner thread, holds NO microphone itself):
-      STATE_IDLE    (Level 1) — listens for just "jarvish" naam
-      STATE_COMMAND (Level 2) — listens for actual user command, executes, speaks,
-                                then immediately wapas STATE_IDLE
-    takecommand() khud mic open/close karta hai — outer loop ka mic nahi chahiye.
+    2-Level inner loop:
+      STATE_IDLE    — sirf "jarvish" naam sunta hai
+      STATE_COMMAND — ek command sunta hai, execute karta hai, wapas IDLE
+    "wakeup jarvish" ke baad yahan aata hai STATE_IDLE se.
     """
+    global _state
     from engine.command import takecommand, run_command, speak
 
     last_activity = time.time()
-    print(f"[HOTWORD] 🟡 IDLE mode — bolo 'Jarvish' to give command")
+    print("[HOTWORD] 🟡 IDLE — 'Jarvish' bol ke command do")
 
     while _listening:
         with _state_lock:
@@ -420,197 +399,136 @@ def _idle_command_loop():
         if current == STATE_DEEP_SLEEP:
             break
 
-        # ── Idle auto deep-sleep (2 min no activity) ─────────────────────
-        if current == STATE_IDLE:
-            if time.time() - last_activity > IDLE_AUTO_SLEEP_SECONDS:
-                print("[HOTWORD] 💤 Idle timeout — going deep sleep")
-                speak("Long time no command — going to sleep. Say wakeup jarvish to wake me up again.")
-                _beep_sleep()
-                _wait_for_tts(3)
-                with _state_lock:
-                    _state = STATE_DEEP_SLEEP
-                break
+        # ── Auto sleep after 2 min silence ───────────────────────────────
+        if time.time() - last_activity > IDLE_AUTO_SLEEP_SECONDS:
+            print("[HOTWORD] 💤 Idle timeout — deep sleep")
+            speak("Bahut der ho gayi. So raha hoon. 'Wakeup Jarvish' bol ke wapas bulao.")
+            _beep_sleep()
+            _wait_for_tts(3)
+            with _state_lock:
+                _state = STATE_DEEP_SLEEP
+            break
 
-        # ── STATE_IDLE: suno "jarvish" naam YA "jarvish + command" combined ──
+        # ════════════════════════════════════════════════════════════════
+        #  STATE_IDLE — sirf "jarvish" naam suno, phir command mode mein jao
+        # ════════════════════════════════════════════════════════════════
         if current == STATE_IDLE:
-            print("[HOTWORD] 🟡 IDLE — bolo 'Jarvish' ya seedha 'Jarvish <command>'...")
+            print("[HOTWORD] 🟡 IDLE — bolo 'Jarvish' to give a command...")
             heard = takecommand()
             if not heard or not heard.strip():
                 continue
+
             last_activity = time.time()
             heard_lower = heard.lower().strip()
             print(f"[HOTWORD] 👂 (idle) Heard: '{heard_lower}'")
 
+            # Sleep words — wapas deep sleep
             if _contains_sleep_word(heard_lower):
-                speak("Going to sleep Sir. Say wakeup jarvish to wake me up again.")
+                speak("Theek hai Sir. So raha hoon. 'Wakeup Jarvish' bol ke wapas bulao.")
                 _beep_sleep()
                 _wait_for_tts(2.5)
                 with _state_lock:
                     _state = STATE_DEEP_SLEEP
-                print("[HOTWORD] ⏸ Deep sleep — only 'wakeup jarvish' will work now")
                 break
 
+            # Wake word dobara bola — already online
             if _contains_wake_word(heard_lower):
-                speak("Main already online hoon Sir. Bas 'Jarvish' boliye — ya seedha 'Jarvish command_ka naam' boliye.")
-                _wait_for_tts(3.5)
+                speak("Haan Sir, main already online hoon. 'Jarvish' bol ke command do.")
+                _wait_for_tts(2.5)
                 continue
 
-            if _contains_name_trigger(heard_lower):
-                print("[HOTWORD] 🔔 NAME TRIGGER (short) — switching to COMMAND listen mode")
-                _beep_listening()
+            # "jarvish" + seedha command ek saath (e.g. "jarvish open youtube")
+            _name_prefixes = (
+                "jarvish ", "jarvis ", "jarwish ", "jervish ", "jurvish ",
+                "garvish ", "javish ", "jervis ", "gervish ", "jarbish ",
+                "hey jarvish ", "hey jarvis ", "ok jarvish ", "ok jarvis ",
+                "okay jarvish ", "okay jarvis ", "o jarvish ", "o jarvis ",
+            )
+            clean_q = heard_lower
+            stripped = False
+            for p in _name_prefixes:
+                if clean_q.startswith(p):
+                    clean_q = clean_q[len(p):].strip()
+                    stripped = True
+                    break
+            for s in (" jarvish", " jarvis", " jarwish", " jervish"):
+                if clean_q.endswith(s):
+                    clean_q = clean_q[:-len(s)].strip()
+                    break
+
+            # Sirf naam bola (no command after it) → COMMAND mode
+            if _contains_name_trigger(heard_lower) and not clean_q:
+                print("[HOTWORD] 🔔 Naam suna — COMMAND mode")
                 speak("Haan Sir, boliye.")
                 _wait_for_tts(1.8)
                 with _state_lock:
                     _state = STATE_COMMAND
                 continue
 
-            # ══════════════════════════════════════════════════════════════
-            #  FIX: "Jarvis open YouTube" jaisa COMBINED query (3+ words)
-            #  with jarvis naam somewhere in it → naam hata ke DIRECT command execute
-            # ══════════════════════════════════════════════════════════════
-            def _has_any_name_seed(txt):
-                seeds = ("jarvish","jarvis","jarwish","jervish","jurvish",
-                         "garvish","javish","jervis","gervish","jarbish",
-                         "jarvees","jarveesh","jarviss","javis","garvis")
-                words = txt.replace("?", "").replace("!", "").replace(".", "").split()
-                joined_all = "".join(words)
-                for s in seeds:
-                    if s in joined_all:
-                        return True
-                for w in words:
-                    for s in seeds:
-                        if s in w:
-                            return True
-                        if 4 <= len(w) <= 14:
-                            import difflib as _dl
-                            if _dl.SequenceMatcher(None, w, s).ratio() >= 0.75:
-                                return True
-                if len(words) >= 2:
-                    for i in range(len(words)-1):
-                        pair = words[i] + words[i+1]
-                        for s in seeds:
-                            if s in pair:
-                                return True
-                return False
-
-            words = heard_lower.split()
-            if len(words) >= 3 and _has_any_name_seed(heard_lower):
-                print("[HOTWORD] ⚡ COMBINED QUERY detected (naam + command) — extracting and executing directly")
-                _beep_listening()
-                cleanup_prefixes = (
-                    "jarvish ", "jarvis ", "jarwish ", "jervish ", "jurvish ",
-                    "garvish ", "javish ", "jervis ", "gervish ", "jarbish ",
-                    "jarvees ", "jarveesh ", "jarviss ", "javis ", "garvis ",
-                    "hey jarvish ", "hey jarvis ", "ok jarvish ", "ok jarvis ",
-                    "o jarvish ", "o jarvis ", "okay jarvish ", "okay jarvis ",
-                    "listen jarvish ", "listen jarvis ", "sun jarvish ", "sun jarvis ",
-                    "suna jarvish ", "suna jarvis ",
-                )
-                query_clean = heard_lower
-                for p in cleanup_prefixes:
-                    if query_clean.startswith(p):
-                        query_clean = query_clean[len(p):]
-                        break
-                suffixes = (" jarvish", " jarvis", " jarwish", " jervish", " garvish")
-                for s in suffixes:
-                    if query_clean.endswith(s):
-                        query_clean = query_clean[:-len(s)]
-                        break
-                mid_removals = (" jarvish ", " jarvis ", " jarwish ", " jervish ",
-                                " garvish ", " javish ", " jervis ")
-                for mr in mid_removals:
-                    query_clean = query_clean.replace(mr, " ")
-                query_clean = " ".join(query_clean.split()).strip()
-
-                if not query_clean or len(query_clean.split()) < 1:
-                    print("[HOTWORD] Only naam extracted, no command — asking user...")
-                    speak("Haan Sir, boliye — kya karna hai?")
-                    _wait_for_tts(2.2)
-                    with _state_lock:
-                        _state = STATE_COMMAND
-                    continue
-
-                print(f"[HOTWORD] 🎤 Extracted command: '{query_clean}'")
-                # Execute DIRECTLY (no second listen needed)
+            # Naam + command combined → seedha execute
+            if stripped and clean_q:
+                print(f"[HOTWORD] ⚡ Combined (naam+command): '{clean_q}'")
                 try:
-                    response = run_command(query_clean) or ""
+                    run_command(clean_q)
                 except Exception as e:
-                    print(f"[HOTWORD] Combined run_command error: {e}")
-                    speak("Maaf kijiye, command execute mein problem aayi.")
-                    _wait_for_tts(2.5)
-                    continue
-                print(f"[HOTWORD] ✅ Done (combined): {response}")
+                    print(f"[HOTWORD] run_command error: {e}")
+                    speak("Maaf kijiye, problem aayi.")
                 _wait_for_tts(1.2)
+                # Wapas IDLE — user ko "jarvish" phir bolna hoga
                 continue
 
-            # Naam nahi tha, sirf random baat — ignore
+            # Random baat — naam nahi suna, ignore
             print("[HOTWORD] (idle) Naam nahi suna — ignoring")
             continue
 
-        # ── STATE_COMMAND: suno actual command ───────────────────────────
+        # ════════════════════════════════════════════════════════════════
+        #  STATE_COMMAND — ek command suno aur execute karo
+        # ════════════════════════════════════════════════════════════════
         if current == STATE_COMMAND:
-            print("[HOTWORD] 🟢 COMMAND — listening for your command...")
-            start_ts = time.time()
-            query = ""
-            while time.time() - start_ts < COMMAND_TIMEOUT_SECONDS:
-                piece = takecommand()
-                if piece and piece.strip():
-                    query = piece
-                    break
-            if not query:
-                print("[HOTWORD] ⏱ No command heard — back to idle")
-                speak("Koi command nahi suna. Dobara 'Jarvish' boliye.")
+            print("[HOTWORD] 🟢 COMMAND — boliye aapka command...")
+            query = takecommand()
+
+            if not query or not query.strip():
+                # Timeout — wapas IDLE
+                speak("Koi command nahi suna. 'Jarvish' bol ke dobara try karo.")
                 _wait_for_tts(2.5)
                 with _state_lock:
                     _state = STATE_IDLE
                 continue
 
             last_activity = time.time()
-            print(f"[HOTWORD] 🎤 Command: '{query}'")
+            query_lower = query.lower().strip()
+            print(f"[HOTWORD] 🎤 Command: '{query_lower}'")
 
-            if _contains_sleep_word(query):
-                speak("Going to sleep Sir. Say wakeup jarvish to wake me up again.")
+            # Sleep
+            if _contains_sleep_word(query_lower):
+                speak("Theek hai Sir. So raha hoon. 'Wakeup Jarvish' bol ke wapas bulao.")
                 _beep_sleep()
                 _wait_for_tts(2.5)
                 with _state_lock:
                     _state = STATE_DEEP_SLEEP
-                print("[HOTWORD] ⏸ Deep sleep")
                 break
 
-            if _contains_wake_word(query):
-                speak("Main abhi bhi listening hoon Sir. Aap apna command bol sakte hain.")
-                _wait_for_tts(2.5)
-                with _state_lock:
-                    _state = STATE_IDLE
+            # Naam bola command ke jagah
+            if _contains_name_trigger(query_lower) and len(query_lower.split()) <= 2:
+                speak("Haan Sir, main sun raha hoon. Command boliye.")
+                _wait_for_tts(2)
                 continue
 
-            if _contains_name_trigger(query) and len(query.split()) <= 3:
-                speak("Haan Sir, main yahin hoon. Apna command boliye.")
-                _wait_for_tts(2.5)
-                continue
-
-            # ── Execute command ─────────────────────────────────────────
-            # NOTE: All command paths (desktop_control.py, features.py,
-            # and run_command branches) already call speak() internally
-            # for the final result. We don't speak(response) here to
-            # avoid double-speaking.
+            # Execute command
             try:
-                response = run_command(query) or ""
+                run_command(query_lower)
             except Exception as e:
                 print(f"[HOTWORD] run_command error: {e}")
-                speak("Maaf kijiye, command execute mein problem aayi.")
-                _wait_for_tts(2.5)
-                with _state_lock:
-                    _state = STATE_IDLE
-                continue
+                speak("Maaf kijiye, command mein problem aayi.")
 
-            print(f"[HOTWORD] ✅ Done: {response}")
             _wait_for_tts(1.2)
+            # Command done → wapas IDLE (user ko "jarvish" phir bolna hoga)
             with _state_lock:
                 _state = STATE_IDLE
-            print("[HOTWORD] 🟡 Back to IDLE — bolo 'Jarvish' for next command")
+            print("[HOTWORD] 🟡 Back to IDLE — 'Jarvish' bol ke agla command do")
 
-    # Thread exits — ensure state is deep_sleep (if not already)
+    # Thread exits
     with _state_lock:
         if _state != STATE_DEEP_SLEEP:
             _state = STATE_DEEP_SLEEP
@@ -629,6 +547,7 @@ def _wake_word_loop():
     - Jab tak IDLE/COMMAND hai, MIC release rakho (takecommand ko chahiye)
     - Wapas deep sleep aane par, mic fir se grab karo
     """
+    global _state
     # #region debug-point A:wake-loop-entry
     _dbg('A', 'wake_loop_thread_ENTERED', sr_available=(sr is not None), listening_flag=_listening)
     # #endregion
@@ -638,7 +557,8 @@ def _wake_word_loop():
         print("[HOTWORD] ❌ speech_recognition not installed — hotword disabled")
         return
 
-    recognizer = _make_recognizer(energy=20, dynamic=True, pause=0.7)
+    # Wake loop ke liye: calibrate karo phir sun lo
+    recognizer = _make_recognizer(energy=300, dynamic=True, pause=0.8)
 
     print("[HOTWORD] 😴 DEEP SLEEP — sirf 'Wakeup Jarvish' hi kaam karega")
     _silence_counter = 0
@@ -655,47 +575,39 @@ def _wake_word_loop():
         # ── DEEP SLEEP: mic open, listen for "wakeup jarvish" ──────────
         try:
             with sr.Microphone() as source:
-                _dbg('A', 'sr_Microphone_BLOCK_ENTERED_ok', source_type=type(source).__name__, initial_energy=recognizer.energy_threshold, pause=recognizer.pause_threshold, dynamic=recognizer.dynamic_energy_threshold)
-                recognizer.adjust_for_ambient_noise(source, duration=1.0)
-                if recognizer.energy_threshold > 30:
-                    recognizer.energy_threshold = 20
-                _dbg('B', 'ambient_noise_adjust_done_after_1s_HIGH_SENSITIVITY', post_adjust_energy=recognizer.energy_threshold, dynamic_energy=recognizer.dynamic_energy_threshold, damping=recognizer.dynamic_energy_adjustment_damping, ratio=recognizer.dynamic_energy_ratio)
-                print(f"[HOTWORD] 🎤 Mic ready (HIGH SENSITIVITY, energy={recognizer.energy_threshold:.0f}) — bolo 'Wakeup Jarvish'...")
+                recognizer.adjust_for_ambient_noise(source, duration=0.5)
+                print(f"[HOTWORD] 🎤 Listening (energy={recognizer.energy_threshold:.0f}) — bolo 'Wakeup Jarvish'...")
 
                 while _listening:
                     with _state_lock:
                         if _state != STATE_DEEP_SLEEP:
                             break
                     try:
-                        audio = recognizer.listen(source, timeout=8, phrase_time_limit=8)
-                        _dbg('B', 'listen_call_SUCCESS_audio_captured_HIGH_SENS', audio_duration_sec=getattr(audio,'frame_data',None) and round(len(audio.frame_data)/(audio.sample_rate*audio.sample_width),2) if audio else 0, current_energy=recognizer.energy_threshold)
+                        audio = recognizer.listen(source, timeout=10, phrase_time_limit=10)
 
                         try:
                             text = _recognize_google_multi_lang(audio)
                             print(f"[HOTWORD] 👂 (deep) Heard: '{text}'")
                             _silence_counter = 0
-                            _dbg('C', 'recognize_google_multi_RETURNED_TEXT', raw_text=text, text_lower=text.lower(), word_count=len(text.split()))
 
                             _matched = _contains_wake_word(text)
-                            _dbg('C', 'wake_word_match_RESULT', match=_matched, text=text.lower().strip(), words=text.lower().split())
+                            print(f"[HOTWORD] Wake match: {_matched}")
 
                             if _matched:
                                 print("[HOTWORD] 🔔 DEEP SLEEP WAKE DETECTED!")
-                                _dbg('E', 'wake_DETECTED_about_to_call_beep_and_browser_and_speak_ready', text=text.lower())
                                 _beep_wake()
-                                _dbg('E', 'beep_wake_FINISHED_no_error', text=text.lower())
 
                                 try:
                                     from engine.command import speak as _speak
-                                    _speak("Jarvis online, command ke liye ready hai.")
+                                    _speak("Jarvis online. 'Jarvish' bol ke command do.")
                                 except Exception:
                                     pass
                                 try:
                                     _open_jarvis_browser()
                                 except Exception as _be:
                                     print(f"[HOTWORD] Browser open (non-fatal): {_be}")
-                                _dbg('E', '_open_jarvis_browser_AND_ready_TTS_done', url=JARVIS_URL, text=text.lower())
 
+                                # IDLE mein jao — user "jarvish" bol ke command dega
                                 with _state_lock:
                                     _state = STATE_IDLE
 
@@ -705,7 +617,6 @@ def _wake_word_loop():
                                     name="jarvis-idle-command"
                                 )
                                 t.start()
-                                _dbg('E', 'idle_command_THREAD_STARTED', thread_alive=t.is_alive(), state_after=_state)
                                 break
 
                         except sr.UnknownValueError:
@@ -773,13 +684,15 @@ def is_active():
 
 def force_activate():
     """
-    Manually activate (browser mic button). Goes straight to IDLE mode.
+    Manually activate (browser mic button). Goes to IDLE mode.
+    User "jarvish" bol ke command de sakta hai.
     """
+    global _state
     if _state == STATE_DEEP_SLEEP:
         _beep_wake()
         try:
             from engine.command import speak as _speak
-            _speak("Jarvis online, command ke liye ready hai.")
+            _speak("Jarvis online. 'Jarvish' bol ke command do.")
         except Exception:
             pass
         try:
@@ -794,4 +707,4 @@ def force_activate():
             name="jarvis-idle-command"
         )
         t.start()
-        print("[HOTWORD] Force activated from UI → IDLE")
+        print("[HOTWORD] Force activated → IDLE")

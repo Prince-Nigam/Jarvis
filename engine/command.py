@@ -69,13 +69,12 @@ try:
     import speech_recognition as sr
     _recognizer = sr.Recognizer()
     _recognizer.pause_threshold          = 1.0
-    _recognizer.phrase_threshold         = 0.1
-    _recognizer.non_speaking_duration    = 0.5
-    _recognizer.energy_threshold         = 20
+    _recognizer.phrase_threshold         = 0.05   # chhote phrases bhi catch hoge
+    _recognizer.non_speaking_duration    = 0.3
+    _recognizer.energy_threshold         = 300    # ambient calibration se set hoga
     _recognizer.dynamic_energy_threshold = True
-    _recognizer.dynamic_energy_adjustment_damping = 0.15
-    _recognizer.dynamic_energy_ratio     = 1.2
-    _recognizer.operation_timeout        = 15
+    _recognizer.dynamic_energy_ratio     = 1.5
+    _recognizer.operation_timeout        = None
     _HAS_SR = True
 except (ModuleNotFoundError, Exception):
     sr = None
@@ -129,13 +128,14 @@ def takecommand():
         print("[SR] speech_recognition not available")
         return ""
 
+    # Har call pe ambient noise se calibrate karo — sahi threshold milegi
+    _recognizer.dynamic_energy_threshold = True
+    _recognizer.energy_threshold         = 300  # default starting point
+
     try:
         with sr.Microphone() as source:
-            print("[MIC] Adjusting for ambient noise (high sensitivity mode)...")
-            _recognizer.adjust_for_ambient_noise(source, duration=1.0)
-            if _recognizer.energy_threshold > 30:
-                _recognizer.energy_threshold = 20
-            print(f"[MIC] 🎙️ Listening intently (energy={_recognizer.energy_threshold:.0f}, pause={_recognizer.pause_threshold}s)...")
+            _recognizer.adjust_for_ambient_noise(source, duration=0.5)
+            print(f"[MIC] 🎙️ Listening (calibrated energy={_recognizer.energy_threshold:.0f})...")
             audio = _recognizer.listen(source, timeout=12, phrase_time_limit=15)
     except sr.WaitTimeoutError:
         print("[MIC] Timeout — no speech detected in 12s window")
@@ -296,6 +296,16 @@ def run_command(query):
         elif any(k in query for k in ("play music", "pause music", "play pause", "resume music", "toggle play")):
             dc.media_play_pause()
             response = "Play/Pause toggled"
+
+        elif any(k in query for k in ("stop", "pause", "ruko", "band karo music", "music band karo", "video band karo", "music roko", "video roko")):
+            # "stop" / "pause" — jo bhi chal raha ho usse pause/stop karo
+            dc.media_play_pause()
+            response = "Media paused"
+
+        elif any(k in query for k in ("play", "chalu karo", "resume", "start music", "music chalu")):
+            # "play" / "resume" — wapas chalu karo
+            dc.media_play_pause()
+            response = "Media playing"
 
         elif any(k in query for k in ("next song", "next track", "skip song", "next music")):
             dc.media_next()
@@ -1085,6 +1095,39 @@ def run_command(query):
             from engine.features import PlayYoutube
             PlayYoutube(query)
             response = "Playing on YouTube"
+
+        # ── Smart YouTube: "open youtube and play X" / "youtube mein X chalao" ──
+        elif ("youtube" in query and any(k in query for k in (
+            "and play", "play karo", "chalao", "chala do", "laga do",
+            "play kar", "song play", "music play", "video play", "open and play"
+        ))):
+            import re as _re_yt
+            # Song name extract karo — "and play X", "play karo X", "chalao X" ke baad
+            song = ""
+            for pat in (
+                r"open\s+youtube\s+and\s+play\s+(.+)",
+                r"youtube\s+(?:mein|pe|par|on)?\s*(.+?)\s+(?:chalao|chala\s+do|laga\s+do|play\s+karo|play\s+kar)",
+                r"youtube\s+(?:mein|pe|par|on)?\s*(.+?)\s+play",
+                r"(?:play|chalao|chala\s+do|laga\s+do)\s+(.+?)\s+(?:on|pe|par|mein)?\s*youtube",
+                r"youtube.+?(?:and\s+play|play\s+karo|chalao|chala\s+do|laga\s+do)\s+(.+)",
+            ):
+                m = _re_yt.search(pat, query, _re_yt.IGNORECASE)
+                if m:
+                    song = m.group(1).strip()
+                    break
+            if not song:
+                # fallback — sab kuch jo "youtube" ke baad hai
+                song = query.replace("open", "").replace("youtube", "").replace("and play", "").replace("play karo", "").replace("chalao", "").replace("chala do", "").replace("laga do", "").replace("play kar", "").strip()
+            if song and len(song) > 1:
+                from engine.features import PlayYoutube
+                speak(f"YouTube pe {song} chala raha hoon")
+                PlayYoutube(f"play {song} on youtube")
+                response = f"Playing {song} on YouTube"
+            else:
+                import webbrowser
+                webbrowser.open("https://www.youtube.com/")
+                speak("YouTube khol diya")
+                response = "Opening YouTube"
 
         # ══════════════════════════════════════════════════════════
         #  OPEN APP / WEBSITE (generic, catches everything else with "open")
