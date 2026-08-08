@@ -214,17 +214,29 @@ def media_stop():
 def volume_up(steps=5):
     if not _HAS_GUI: return
     pyautogui.press("volumeup", presses=steps)
-    speak("Volume increased")
+    speak("Volume badha diya Sir")
 
 def volume_down(steps=5):
     if not _HAS_GUI: return
     pyautogui.press("volumedown", presses=steps)
-    speak("Volume decreased")
+    speak("Volume kam kar diya Sir")
+
+def volume_max():
+    """Volume poora full karo — 50 steps press karo guarantee se max tak."""
+    if not _HAS_GUI: return
+    pyautogui.press("volumeup", presses=50)
+    speak("Volume full kar diya Sir")
+
+def volume_min():
+    """Volume bilkul zero karo."""
+    if not _HAS_GUI: return
+    pyautogui.press("volumedown", presses=50)
+    speak("Volume zero kar diya Sir")
 
 def mute_volume():
     if not _HAS_GUI: return
     pyautogui.press("volumemute")
-    speak("Muted")
+    speak("Mute kar diya Sir")
 
 
 # ═══════════════════════════════════════════════════════════════

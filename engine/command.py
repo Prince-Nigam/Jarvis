@@ -209,6 +209,115 @@ def _push_event(msg: str, level: str = "info"):
         pass
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+#  SMART LEARNING ENGINE
+#  - learn()  : user ka command + result store karo
+#  - recall() : pehle learned commands check karo
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _get_db():
+    """Fresh DB connection."""
+    import sqlite3
+    from engine.init_db import DB_PATH
+    return sqlite3.connect(DB_PATH)
+
+
+def learn(trigger: str, cmd_type: str, value: str):
+    """
+    Ek command learn karo.
+    trigger  : jo user bolta hai, e.g. "play believer", "khula wali site"
+    cmd_type : 'url' | 'song' | 'app'
+    value    : URL / song name / app name
+    """
+    trigger = trigger.strip().lower()
+    if not trigger or not value:
+        return
+    try:
+        con = _get_db()
+        cur = con.cursor()
+        cur.execute("""
+            INSERT INTO learned_commands (trigger, type, value, use_count, last_used)
+            VALUES (?, ?, ?, 1, CURRENT_TIMESTAMP)
+            ON CONFLICT(trigger) DO UPDATE SET
+                value     = excluded.value,
+                type      = excluded.type,
+                use_count = use_count + 1,
+                last_used = CURRENT_TIMESTAMP
+        """, (trigger, cmd_type, value))
+        con.commit()
+        con.close()
+        print(f"[LEARN] ✅ Stored: '{trigger}' → {cmd_type}:{value}")
+        _push_event(f"Learned: '{trigger}'", "dim")
+    except Exception as e:
+        print(f"[LEARN] Error: {e}")
+
+
+def recall(query: str):
+    """
+    Query se koi learned command milti hai?
+    Returns (type, value) tuple ya (None, None).
+    Fuzzy match — query ke words learned trigger mein hain ya nahi.
+    """
+    query = query.strip().lower()
+    if not query:
+        return None, None
+    try:
+        con = _get_db()
+        cur = con.cursor()
+        # Exact match pehle
+        cur.execute(
+            "SELECT type, value FROM learned_commands WHERE trigger = ? ORDER BY use_count DESC LIMIT 1",
+            (query,)
+        )
+        row = cur.fetchone()
+        if row:
+            # use_count update karo
+            cur.execute(
+                "UPDATE learned_commands SET use_count=use_count+1, last_used=CURRENT_TIMESTAMP WHERE trigger=?",
+                (query,)
+            )
+            con.commit()
+            con.close()
+            return row[0], row[1]
+
+        # Partial / fuzzy match — query words learned trigger mein hain
+        cur.execute("SELECT trigger, type, value, use_count FROM learned_commands ORDER BY use_count DESC")
+        rows = cur.fetchall()
+        con.close()
+
+        query_words = set(query.split())
+        best = None
+        best_score = 0
+        for (trig, t, v, uc) in rows:
+            trig_words = set(trig.split())
+            # Score = matching words / total trigger words
+            common = query_words & trig_words
+            if not common:
+                continue
+            score = len(common) / max(len(trig_words), 1)
+            if score > best_score and score >= 0.6:   # 60% match minimum
+                best_score = score
+                best = (t, v, trig)
+
+        if best:
+            t, v, matched_trig = best
+            con = _get_db()
+            cur = con.cursor()
+            cur.execute(
+                "UPDATE learned_commands SET use_count=use_count+1, last_used=CURRENT_TIMESTAMP WHERE trigger=?",
+                (matched_trig,)
+            )
+            con.commit()
+            con.close()
+            print(f"[RECALL] 🧠 Fuzzy match: '{query}' → '{matched_trig}' ({t}:{v})")
+            return t, v
+
+    except Exception as e:
+        print(f"[RECALL] Error: {e}")
+
+    return None, None
+
+
 # ── Public API ─────────────────────────────────────────────────────────────────
 
 def speak(text):
@@ -300,6 +409,43 @@ def run_command(query):
     _spoken  = False   # True if speak() already called inside branch
     try:
         from engine import desktop_control as dc
+
+        # ══════════════════════════════════════════════════════════
+        #  ── RECALL: pehle learned commands check karo
+        #     Agar koi match mila — seedha execute karo, baaki skip
+        # ══════════════════════════════════════════════════════════
+        _recall_type, _recall_value = recall(query)
+        if _recall_type and _recall_value:
+            print(f"[RECALL] 🧠 Match: '{query}' → {_recall_type}:{_recall_value}")
+            _push_event(f"🧠 Remembered: {query}", "success")
+            if _recall_type == "song":
+                from engine.features import PlayYoutube
+                speak(f"YouTube pe {_recall_value} chala raha hoon")
+                PlayYoutube(f"play {_recall_value} on youtube")
+                response = f"Playing {_recall_value} on YouTube"
+                _spoken = True
+            elif _recall_type in ("url", "web"):
+                import webbrowser, os as _os
+                _edge = r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
+                speak(f"Opening {_recall_value}")
+                if _os.path.exists(_edge):
+                    import subprocess as _sp
+                    _sp.Popen([_edge, _recall_value])
+                else:
+                    webbrowser.open(_recall_value)
+                response = f"Opening {_recall_value}"
+                _spoken = True
+            elif _recall_type == "app":
+                from engine.features import openCommand
+                speak(f"Opening {_recall_value}")
+                openCommand(f"open {_recall_value}")
+                response = f"Opening {_recall_value}"
+                _spoken = True
+            # Recall successful — early return
+            if _spoken:
+                if response:
+                    _push_event(f"JARVIS ◀ {response}", "success")
+                return response
 
         # ══════════════════════════════════════════════════════════
         #  ── QUICK CHECK: simple math expression (2 + 3, 15 * 4)
@@ -443,17 +589,46 @@ def run_command(query):
             dc.media_stop()
             response = "Media stopped"
 
-        elif any(k in query for k in ("volume up", "increase volume", "louder", "volume badhao", "volume upar")):
+        elif any(k in query for k in (
+            "volume full", "full volume", "volume max", "max volume",
+            "volume poora", "poora volume", "volume 100", "sound full",
+            "full karo", "full kar do", "zyada se zyada", "ekdum full",
+            "volume puri tarah badhao", "volume bilkul full"
+        )):
+            dc.volume_max()
+            response = "Volume full kar diya Sir"
+            _spoken = True
+
+        elif any(k in query for k in (
+            "volume zero", "volume off", "sound zero",
+            "volume bilkul kam", "ekdum band karo volume"
+        )):
+            dc.volume_min()
+            response = "Volume zero kar diya Sir"
+            _spoken = True
+
+        elif any(k in query for k in (
+            "volume up", "increase volume", "louder", "volume badhao",
+            "volume upar", "aawaz badhao", "sound badhao", "thoda aur badhao",
+            "thoda volume badhao", "aawaz upar karo"
+        )):
             dc.volume_up()
-            response = "Volume increased"
+            response = "Volume badha diya Sir"
+            _spoken = True
 
-        elif any(k in query for k in ("volume down", "decrease volume", "lower volume", "quieter", "volume niche")):
+        elif any(k in query for k in (
+            "volume down", "decrease volume", "lower volume", "quieter",
+            "volume niche", "volume kam karo", "aawaz kam karo",
+            "sound kam karo", "thoda kam karo", "thoda volume kam"
+        )):
             dc.volume_down()
-            response = "Volume decreased"
+            response = "Volume kam kar diya Sir"
+            _spoken = True
 
-        elif any(k in query for k in ("mute", "unmute", "mute volume")):
+        elif any(k in query for k in ("mute", "unmute", "mute volume", "chup karo", "awaaz band karo")):
             dc.mute_volume()
-            response = "Muted"
+            response = "Mute kar diya Sir"
+            _spoken = True
 
         # ══════════════════════════════════════════════════════════
         #  TEXT EDITING SHORTCUTS (Bold/Italic/Underline etc.)

@@ -52,6 +52,21 @@ def init_database():
         "id INTEGER PRIMARY KEY, name VARCHAR(200), "
         "mobile_no VARCHAR(255), email VARCHAR(255))"
     )
+    # ── Learned commands — user ke commands auto-store ─────────────────────
+    # type: 'url' | 'song' | 'app' | 'command'
+    # trigger: jo user bolta hai (e.g. "mera gaana", "meri site")
+    # value: actual URL / song name / app name / command string
+    # use_count: kitni baar use kiya — sorting ke liye
+    cursor.execute(
+        "CREATE TABLE IF NOT EXISTS learned_commands("
+        "id INTEGER PRIMARY KEY, "
+        "trigger VARCHAR(200) UNIQUE, "
+        "type VARCHAR(20), "
+        "value VARCHAR(1000), "
+        "use_count INTEGER DEFAULT 1, "
+        "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
+        "last_used TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"
+    )
 
     # Seed default web commands
     defaults = [

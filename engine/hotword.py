@@ -514,7 +514,7 @@ def _idle_command_loop():
                 break
 
             # Naam bola command ke jagah — seedha sun lo, STATE_COMMAND mein hi raho
-            if _contains_name_trigger(query_lower) and len(query_lower.split()) <= 2:
+            if _contains_name_trigger(query_lower) and len(query_lower.split()) <= 3:
                 speak("Haan Sir, boliye.")
                 _wait_for_tts()
                 continue

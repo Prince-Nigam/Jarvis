@@ -824,23 +824,48 @@ def openCommand(query):
 
     # 4. Try web fallbacks for social/streaming apps
     if app_name in _WEB_FALLBACKS:
-        _open_in_browser(_WEB_FALLBACKS[app_name])
+        url = _WEB_FALLBACKS[app_name]
+        _open_in_browser(url)
+        try:
+            from engine.command import learn
+            learn(f"open {app_name}", "url", url)
+            learn(app_name, "url", url)
+        except Exception:
+            pass
         return
 
     # 5. If explicit domain or URL given (e.g. github.com, python.org)
     if any(app_name.endswith(tld) for tld in [".com", ".org", ".net", ".io", ".in", ".ai", ".co", ".gov", ".edu", ".dev"]):
         url = app_name if app_name.startswith("http") else f"https://{app_name}"
         _open_in_browser(url)
+        try:
+            from engine.command import learn
+            learn(f"open {app_name}", "url", url)
+            learn(app_name, "url", url)
+        except Exception:
+            pass
         return
 
     # 6. Try Windows Start Menu / app alias (handles Store apps, PATH apps)
     if _open_via_start_menu(app_name):
         print(f"[openCommand] Opened via Start Menu: {app_name}")
+        try:
+            from engine.command import learn
+            learn(f"open {app_name}", "app", app_name)
+        except Exception:
+            pass
         return
 
     # 7. Single-word — try as website
     if " " not in app_name:
-        _open_in_browser(f"https://www.{app_name}.com")
+        url = f"https://www.{app_name}.com"
+        _open_in_browser(url)
+        try:
+            from engine.command import learn
+            learn(f"open {app_name}", "url", url)
+            learn(app_name, "url", url)
+        except Exception:
+            pass
         return
 
     # 8. Multi-word — Google search & launch
@@ -869,6 +894,13 @@ def PlayYoutube(query):
                 subprocess.Popen([EDGE_PATH, url])
             else:
                 webbrowser.open(url)
+            # ── Auto-learn: agle baar seedha play hoga ───────────────────
+            try:
+                from engine.command import learn
+                learn(f"play {search_term}", "song", search_term)
+                learn(search_term, "song", search_term)
+            except Exception:
+                pass
             return
     except Exception as e:
         print(f"[YouTube] Search error: {e}")
