@@ -204,7 +204,7 @@ $(document).ready(function () {
                 ? data.response : buildFallbackReply(text);
             showAssistantText(reply);
             window.addReceiverMsg(reply);
-            window.addLog('JARVIS > ' + reply, 'success');
+            // Note: addLog for JARVIS response comes via event polling from backend
             setTimeout(showIdle, 4000);
         })
         .catch(function () {
@@ -270,6 +270,27 @@ $(document).ready(function () {
     $('#chatbox').on('keyup', function () { showHideBtn($(this).val()); });
     $('#chatbox').on('keypress', function (e) { if (e.which === 13) sendText(); });
     $('#SendBtn').on('click', sendText);
+
+    // ── Activity Log polling — backend se live events fetch karo ─────────
+    var _lastEventId = 0;
+    function pollEvents() {
+        fetch('/api/events?after=' + _lastEventId)
+            .then(function(r){ return r.json(); })
+            .then(function(data){
+                if (data && data.events && data.events.length) {
+                    data.events.forEach(function(ev){
+                        window.addLog(ev.msg, ev.level || 'info');
+                        if (_lastEventId < ev.id) _lastEventId = ev.id;
+                    });
+                }
+            })
+            .catch(function(){});
+    }
+    // Boot ke baad poling shuru karo
+    setTimeout(function(){
+        pollEvents();
+        setInterval(pollEvents, 1500);
+    }, 2000);
 
     // ── Status poll ────────────────────────────────────────────────────────
     setInterval(function () {

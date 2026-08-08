@@ -16,6 +16,22 @@ from engine.authenticator import Recognize
 from engine.init_db import init_database
 import engine.system_info as sysinfo
 
+# ── Event Log (Activity Log → frontend polling) ────────────────────────────────
+import collections
+_event_log   = collections.deque(maxlen=200)   # circular buffer, newest last
+_event_seq   = 0                                # ever-increasing sequence id
+_event_lock  = threading.Lock()
+
+def push_event(message: str, level: str = "info"):
+    """
+    Push one log entry. level: info | success | warn | cmd | dim
+    Called from anywhere — hotword.py, command.py, etc.
+    """
+    global _event_seq
+    with _event_lock:
+        _event_seq += 1
+        _event_log.append({"id": _event_seq, "msg": message, "level": level})
+
 # ── App setup ──────────────────────────────────────────────────────────────────
 WWW_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "www")
 app = Flask(__name__, static_folder=WWW_DIR)
@@ -82,6 +98,21 @@ def api_greet():
         print(f"[greet] {e}")
     return jsonify({"ok": True, "message": greet})
 
+# ── Events API (Activity Log polling) ─────────────────────────────────────────
+@app.route("/api/events")
+def api_events():
+    """
+    Frontend polls this. Returns all events with id > after_id.
+    Response: { events: [{id, msg, level}] }
+    """
+    try:
+        after = int(request.args.get("after", 0))
+    except (ValueError, TypeError):
+        after = 0
+    with _event_lock:
+        result = [e for e in _event_log if e["id"] > after]
+    return jsonify({"events": result})
+
 # ── Command API ────────────────────────────────────────────────────────────────
 @app.route("/api/command", methods=["POST"])
 def api_command():
@@ -89,12 +120,16 @@ def api_command():
     query = data.get("query", "").strip()
     if not query:
         return jsonify({"ok": False, "error": "empty query", "response": ""})
+    push_event(f"USER ▶ {query}", "cmd")
     try:
         from engine.command import run_command
         response = run_command(query)
+        if response:
+            push_event(f"JARVIS ◀ {response}", "success")
         return jsonify({"ok": True, "response": response or ""})
     except Exception as e:
         print(f"[command] {e}")
+        push_event(f"ERROR: {e}", "warn")
         return jsonify({"ok": False, "error": str(e), "response": "Something went wrong."})
 
 # ── Listen API ─────────────────────────────────────────────────────────────────
@@ -110,11 +145,16 @@ def api_listen():
             print(f"[listen] {e}")
             result_q.put("")
 
+    push_event("Mic activated — listening...", "info")
     threading.Thread(target=_do_listen, daemon=True).start()
     try:
         text = result_q.get(timeout=12)
     except queue.Empty:
         text = ""
+    if text:
+        push_event(f"Heard: {text}", "cmd")
+    else:
+        push_event("No speech detected", "warn")
     return jsonify({"text": text})
 
 # ── Activate API (force wake from browser mic button) ─────────────────────────
@@ -199,9 +239,12 @@ def start():
         from engine.hotword import start as start_hotword, set_port
         set_port(port)
         start_hotword()
+        push_event("Background listener active", "success")
+        push_event("Say 'Wakeup Jarvish' to activate", "dim")
         print("[Jarvis] Background listener active — tab 'Wakeup Jarvish' boliye tabhi online hoga")
     except Exception as e:
         print(f"[Jarvis] Hotword failed: {e}")
+        push_event(f"Hotword init failed: {e}", "warn")
 
     # NOTE: Startup mein auto browser NAHI kholenge.
     # Sirf user jab "wakeup jarvish" bolega tabhi window + TTS trigger hoga

@@ -4,12 +4,33 @@ import time
 
 
 def extract_yt_term(command):
-    # Define a regular expression pattern to capture the song name
-    pattern = r'play\s+(.*?)\s+on\s+youtube'
-    # Use re.search to find the match in the command
-    match = re.search(pattern, command, re.IGNORECASE)
-    # If a match is found, return the extracted song name; otherwise, return None
-    return match.group(1) if match else None
+    """
+    Extract song/video name from YouTube play command.
+    Handles multiple patterns:
+      "play X on youtube"
+      "play X"
+      "X on youtube"
+    """
+    if not command:
+        return None
+
+    # Pattern 1: "play X on youtube"
+    match = re.search(r'play\s+(.*?)\s+on\s+youtube', command, re.IGNORECASE)
+    if match and match.group(1).strip():
+        return match.group(1).strip()
+
+    # Pattern 2: "play X" (no "on youtube")
+    match = re.search(r'^play\s+(.+)$', command.strip(), re.IGNORECASE)
+    if match and match.group(1).strip():
+        return match.group(1).strip()
+
+    # Pattern 3: remove "on youtube" and return rest
+    cleaned = re.sub(r'\s*on\s+youtube\s*', '', command, flags=re.IGNORECASE).strip()
+    cleaned = re.sub(r'\s*youtube\s*', '', cleaned, flags=re.IGNORECASE).strip()
+    if cleaned:
+        return cleaned
+
+    return None
 
 
 def remove_words(input_string, words_to_remove):

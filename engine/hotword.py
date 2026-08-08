@@ -131,6 +131,15 @@ def set_port(port):
     JARVIS_URL   = f"http://localhost:{port}/index.html"
 
 
+def _push(msg: str, level: str = "info"):
+    """Push event to activity log (non-fatal if main not loaded yet)."""
+    try:
+        from main import push_event
+        push_event(msg, level)
+    except Exception:
+        pass
+
+
 # ── Sounds ────────────────────────────────────────────────────────────────────
 
 def _beep_wake():
@@ -303,8 +312,16 @@ def _contains_sleep_word(text: str) -> bool:
 
 # ── TTS Wait Helper ───────────────────────────────────────────────────────────
 
-def _wait_for_tts(seconds=1.5):
-    """TTS finish hone ka wait karo (queue drain)."""
+def _wait_for_tts(seconds=0.3):
+    """
+    TTS queue drain hone tak ruko, phir extra buffer.
+    Ye ensure karta hai mic open karne se pehle TTS ki awaaz khatam ho.
+    """
+    try:
+        from engine.command import wait_for_speak
+        wait_for_speak()
+    except Exception:
+        pass
     time.sleep(seconds)
 
 
@@ -312,20 +329,20 @@ def _wait_for_tts(seconds=1.5):
 
 def _make_recognizer(energy=20, dynamic=True, pause=0.7):
     """
-    HIGH SENSITIVITY recognizer — halki voice ko capture karega.
-    - Very low energy threshold (20) → soft speech bhi detect hogi
-    - Dynamic energy OFF for wake loop (ON for command loop)
-    - Longer pause (0.7s) → slow speech ko cut nahi karega
+    Recognizer for hotword/command detection.
+    - pause=1.2 for command mode  → poori sentence sun ne ke baad process karo
+    - pause=0.8 for wake word     → thoda tight, just "wakeup jarvish" phrase
+    - Dynamic energy ON           → ambient noise adjust karta hai
     """
     r = sr.Recognizer()
     r.energy_threshold                     = energy
     r.dynamic_energy_threshold             = dynamic
     r.dynamic_energy_adjustment_damping    = 0.15
-    r.dynamic_energy_ratio                 = 1.05   # was 1.3 — bahut slow badhega ab
+    r.dynamic_energy_ratio                 = 1.1    # gentle adjustment
     r.pause_threshold                      = pause
-    r.phrase_threshold                     = 0.05   # was 0.1 — chhoti phrases bhi catch hogi
-    r.non_speaking_duration                = 0.3    # was 0.5
-    r.operation_timeout                    = None   # no operation timeout
+    r.phrase_threshold                     = 0.1    # phrase start threshold
+    r.non_speaking_duration                = 0.5    # phrase end buffer
+    r.operation_timeout                    = None
     return r
 
 
@@ -406,7 +423,7 @@ def _idle_command_loop():
             if _contains_sleep_word(heard_lower):
                 speak("Theek hai Sir. So raha hoon. 'Wakeup Jarvish' bol ke wapas bulao.")
                 _beep_sleep()
-                _wait_for_tts(2.5)
+                _wait_for_tts()
                 with _state_lock:
                     _state = STATE_DEEP_SLEEP
                 break
@@ -414,7 +431,7 @@ def _idle_command_loop():
             # Wake word dobara bola — already online
             if _contains_wake_word(heard_lower):
                 speak("Haan Sir, main already online hoon. 'Jarvish' bol ke command do.")
-                _wait_for_tts(2.5)
+                _wait_for_tts()
                 continue
 
             # "jarvish" + seedha command ek saath (e.g. "jarvish open youtube")
@@ -440,7 +457,8 @@ def _idle_command_loop():
             if _contains_name_trigger(heard_lower) and not clean_q:
                 print("[HOTWORD] 🔔 Naam suna — COMMAND mode")
                 speak("Haan Sir, boliye.")
-                _wait_for_tts(1.8)
+                _push("Naam suna — command mode active", "info")
+                _wait_for_tts()
                 with _state_lock:
                     _state = STATE_COMMAND
                 continue
@@ -448,13 +466,17 @@ def _idle_command_loop():
             # Naam + command combined → seedha execute
             if stripped and clean_q:
                 print(f"[HOTWORD] ⚡ Combined (naam+command): '{clean_q}'")
+                _push(f"USER ▶ {clean_q}", "cmd")
                 try:
                     run_command(clean_q)
                 except Exception as e:
                     print(f"[HOTWORD] run_command error: {e}")
                     speak("Maaf kijiye, problem aayi.")
-                _wait_for_tts(1.2)
-                # Wapas IDLE — user ko "jarvish" phir bolna hoga
+                    _push(f"ERROR: {e}", "warn")
+                _wait_for_tts()
+                # Combined command ke baad seedha COMMAND mode mein jao
+                with _state_lock:
+                    _state = STATE_COMMAND
                 continue
 
             # Random baat — naam nahi suna, ignore
@@ -462,7 +484,7 @@ def _idle_command_loop():
             continue
 
         # ════════════════════════════════════════════════════════════════
-        #  STATE_COMMAND — ek command suno aur execute karo
+        #  STATE_COMMAND — commands suno aur execute karo (continuous loop)
         # ════════════════════════════════════════════════════════════════
         if current == STATE_COMMAND:
             print("[HOTWORD] 🟢 COMMAND — boliye aapka command...")
@@ -472,8 +494,8 @@ def _idle_command_loop():
             if not query or not query.strip():
                 # Agar COMMAND_TIMEOUT_SECONDS guz gaye bina command ke — wapas IDLE
                 if time.time() - _cmd_start >= COMMAND_TIMEOUT_SECONDS:
-                    speak("Koi command nahi suna. 'Jarvish' bol ke dobara try karo.")
-                    _wait_for_tts(2.5)
+                    speak("Koi command nahi suna. Main wait kar raha hoon, 'Jarvish shutdown' bol ke so sakte hain.")
+                    _wait_for_tts()
                     with _state_lock:
                         _state = STATE_IDLE
                 continue
@@ -486,29 +508,30 @@ def _idle_command_loop():
             if _contains_sleep_word(query_lower):
                 speak("Theek hai Sir. So raha hoon. 'Wakeup Jarvish' bol ke wapas bulao.")
                 _beep_sleep()
-                _wait_for_tts(2.5)
+                _wait_for_tts()
                 with _state_lock:
                     _state = STATE_DEEP_SLEEP
                 break
 
-            # Naam bola command ke jagah
+            # Naam bola command ke jagah — seedha sun lo, STATE_COMMAND mein hi raho
             if _contains_name_trigger(query_lower) and len(query_lower.split()) <= 2:
-                speak("Haan Sir, main sun raha hoon. Command boliye.")
-                _wait_for_tts(2)
+                speak("Haan Sir, boliye.")
+                _wait_for_tts()
                 continue
 
             # Execute command
             try:
+                _push(f"USER ▶ {query_lower}", "cmd")
                 run_command(query_lower)
             except Exception as e:
                 print(f"[HOTWORD] run_command error: {e}")
                 speak("Maaf kijiye, command mein problem aayi.")
+                _push(f"ERROR: {e}", "warn")
 
-            _wait_for_tts(1.2)
-            # Command done → wapas IDLE (user ko "jarvish" phir bolna hoga)
-            with _state_lock:
-                _state = STATE_IDLE
-            print("[HOTWORD] 🟡 Back to IDLE — 'Jarvish' bol ke agla command do")
+            # TTS khatam hone tak ruko PEHLE mic kholo
+            _wait_for_tts()
+            # Command done → STATE_COMMAND mein hi raho — agli command seedha suno
+            print("[HOTWORD] 🟢 Ready for next command — boliye...")
 
     # Thread exits
     with _state_lock:
@@ -561,7 +584,7 @@ def _wake_word_loop():
                         if _state != STATE_DEEP_SLEEP:
                             break
                     try:
-                        audio = recognizer.listen(source, timeout=10, phrase_time_limit=10)
+                        audio = recognizer.listen(source, timeout=10, phrase_time_limit=12)
 
                         try:
                             text = _recognize_google_multi_lang(audio)
@@ -574,6 +597,7 @@ def _wake_word_loop():
                             if _matched:
                                 print("[HOTWORD] 🔔 DEEP SLEEP WAKE DETECTED!")
                                 _beep_wake()
+                                _push("🔔 Wake word detected!", "success")
 
                                 try:
                                     from engine.command import speak as _speak
@@ -588,6 +612,7 @@ def _wake_word_loop():
                                 # IDLE mein jao — user "jarvish" bol ke command dega
                                 with _state_lock:
                                     _state = STATE_IDLE
+                                _push("JARVIS ONLINE — 'Jarvish' bol ke command do", "success")
 
                                 t = threading.Thread(
                                     target=_idle_command_loop,
@@ -663,8 +688,9 @@ def force_activate():
     if _state == STATE_DEEP_SLEEP:
         _beep_wake()
         try:
-            from engine.command import speak as _speak
+            from engine.command import speak as _speak, wait_for_speak
             _speak("Jarvis online. 'Jarvish' bol ke command do.")
+            wait_for_speak()
         except Exception:
             pass
         try:

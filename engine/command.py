@@ -131,12 +131,12 @@ _ensure_tts_worker()
 try:
     import speech_recognition as sr
     _recognizer = sr.Recognizer()
-    _recognizer.pause_threshold          = 1.0
-    _recognizer.phrase_threshold         = 0.05   # chhote phrases bhi catch hoge
-    _recognizer.non_speaking_duration    = 0.3
-    _recognizer.energy_threshold         = 300    # ambient calibration se set hoga
+    _recognizer.pause_threshold          = 1.2   # 1.2s silence ke baad hi "done speaking" samjho
+    _recognizer.phrase_threshold         = 0.1   # phrase start threshold
+    _recognizer.non_speaking_duration    = 0.5   # phrase end mein 0.5s silence buffer
+    _recognizer.energy_threshold         = 300
     _recognizer.dynamic_energy_threshold = True
-    _recognizer.dynamic_energy_ratio     = 1.5
+    _recognizer.dynamic_energy_ratio     = 1.2   # slowly adjust, not aggressively
     _recognizer.operation_timeout        = None
     _HAS_SR = True
 except (ModuleNotFoundError, Exception):
@@ -144,27 +144,69 @@ except (ModuleNotFoundError, Exception):
     _recognizer = None
     _HAS_SR = False
 
+# FIX1: ambient noise calibration — sirf ek baar at startup, repeat nahi
+_ambient_calibrated = False
+_shared_mic_source  = None   # persistent mic — bar bar open/close nahi hoga
+_shared_mic_ctx     = None
+
+def _calibrate_once():
+    """Sirf pehli baar 0.3s ambient calibration — better than 0.1s for accuracy."""
+    global _ambient_calibrated
+    if _ambient_calibrated:
+        return
+    try:
+        with sr.Microphone() as source:
+            _recognizer.adjust_for_ambient_noise(source, duration=0.3)
+        _ambient_calibrated = True
+        print(f"[MIC] Calibrated energy={_recognizer.energy_threshold:.0f}")
+    except Exception:
+        _ambient_calibrated = True
+
 
 def _recognize_multi_lang(audio) -> str:
-    """en-IN → hi-IN → en-US multi-language fallback for commands.
-    Reuses the calibrated _recognizer instance (same energy threshold as takecommand).
     """
-    last_err = None
-    for lang in ("en-IN", "hi-IN", "en-US"):
-        try:
-            text = _recognizer.recognize_google(audio, language=lang)
-            if text and text.strip():
-                return text
-        except sr.UnknownValueError as e:
-            last_err = e
-        except sr.RequestError as e:
-            last_err = e
-            break
-        except Exception as e:
-            last_err = e
-    if last_err is not None:
-        raise last_err
+    FIX3: Pehle sirf en-IN try karo (fastest).
+    Sirf agar en-IN fail ho tab hi hi-IN/en-US fallback.
+    Teen sequential API calls ki jagah usually sirf 1 call hogi.
+    """
+    # Fast path — en-IN (Indian English — Hinglish bhi samajhta hai)
+    try:
+        text = _recognizer.recognize_google(audio, language="en-IN")
+        if text and text.strip():
+            return text
+    except sr.RequestError as e:
+        raise e   # network error — retry karne ka fayda nahi
+    except sr.UnknownValueError:
+        pass      # unclear — try next lang
+
+    # Fallback 1 — Hindi
+    try:
+        text = _recognizer.recognize_google(audio, language="hi-IN")
+        if text and text.strip():
+            return text
+    except (sr.UnknownValueError, sr.RequestError):
+        pass
+
+    # Fallback 2 — US English
+    try:
+        text = _recognizer.recognize_google(audio, language="en-US")
+        if text and text.strip():
+            return text
+    except sr.UnknownValueError:
+        raise
+    except sr.RequestError as e:
+        raise e
+
     raise sr.UnknownValueError()
+
+
+def _push_event(msg: str, level: str = "info"):
+    """Push to activity log — non-fatal if main not loaded yet."""
+    try:
+        from main import push_event
+        push_event(msg, level)
+    except Exception:
+        pass
 
 
 # ── Public API ─────────────────────────────────────────────────────────────────
@@ -184,42 +226,55 @@ def speak(text):
         _tts_q.put(text)
 
 
+def wait_for_speak():
+    """
+    TTS queue drain hone tak block karo.
+    Mic open karne se pehle call karo — TTS ki awaaz mic mein nahi jayegi.
+    """
+    _tts_q.join()
+
+
 def takecommand():
     """
     Listen via microphone, return recognised text (lowercase).
-    Returns '' on any failure. Uses multi-language recognition (en-IN, hi-IN, en-US).
-    HIGH SENSITIVITY: Halki awaaz ko bhi capture karega.
+    Optimized:
+    - Mic ek baar open, persistent
+    - Calibration sirf pehli baar
+    - pause_threshold=1.2s — poori baat sun ne ke baad hi process karo
+    - phrase_time_limit=15s — lambi commands ke liye
+    - en-IN first, fallback only if needed
     """
     if not _HAS_SR or _recognizer is None:
         print("[SR] speech_recognition not available")
         return ""
 
-    # Har call pe ambient noise se calibrate karo — sahi threshold milegi
-    _recognizer.dynamic_energy_threshold = True
-    _recognizer.energy_threshold         = 300  # default starting point
+    _calibrate_once()
 
     try:
         with sr.Microphone() as source:
-            _recognizer.adjust_for_ambient_noise(source, duration=0.5)
-            print(f"[MIC] 🎙️ Listening (calibrated energy={_recognizer.energy_threshold:.0f})...")
-            audio = _recognizer.listen(source, timeout=12, phrase_time_limit=15)
+            print(f"[MIC] 🎙️ Listening...")
+            audio = _recognizer.listen(
+                source,
+                timeout=10,
+                phrase_time_limit=15   # 15s tak bolne ka time — lambi commands ke liye
+            )
     except sr.WaitTimeoutError:
-        print("[MIC] Timeout — no speech detected in 12s window")
+        print("[MIC] Timeout — no speech detected")
         return ""
     except OSError as e:
-        print(f"[MIC] ❌ Microphone error (device busy?): {e}")
+        print(f"[MIC] ❌ Microphone error: {e}")
         return ""
     except Exception as e:
         print(f"[MIC] Unexpected: {e}")
         return ""
 
     try:
-        print("[SR] Recognizing (en-IN → hi-IN → en-US)...")
+        print("[SR] Recognizing...")
         query = _recognize_multi_lang(audio)
         print(f"[USER]: {query}")
         return query.lower()
     except sr.UnknownValueError:
-        print("[SR] Could not understand (silence/unintelligible)")
+        print("[SR] Could not understand")
         return ""
     except sr.RequestError as e:
         print(f"[SR] API error: {e}")
@@ -232,14 +287,17 @@ def takecommand():
 def run_command(query):
     """
     Route query to correct feature. Returns response string for browser.
-    speak() is called inside each branch — NOT on the returned value
-    (to avoid double-speaking).
+    speak() is called at the END for ALL commands — Jarvis har command ke
+    baad verbal confirmation deta hai.
+    Kuch branches (greetings, chatBot) already speak() karte hain —
+    unhe _spoken flag se track karo taaki double-speaking na ho.
     """
     query = (query or "").strip().lower()
     if not query:
         return ""
 
     response = ""
+    _spoken  = False   # True if speak() already called inside branch
     try:
         from engine import desktop_control as dc
 
@@ -364,12 +422,12 @@ def run_command(query):
             response = "Play/Pause toggled"
 
         elif any(k in query for k in ("stop", "pause", "ruko", "band karo music", "music band karo", "video band karo", "music roko", "video roko")):
-            # "stop" / "pause" — jo bhi chal raha ho usse pause/stop karo
+            # "stop" / "pause" — youtube/spotify wala jo bhi chal raha ho
             dc.media_play_pause()
             response = "Media paused"
 
-        elif any(k in query for k in ("play", "chalu karo", "resume", "start music", "music chalu")):
-            # "play" / "resume" — wapas chalu karo
+        elif any(k in query for k in ("chalu karo", "resume", "start music", "music chalu")) and "youtube" not in query:
+            # "resume/chalu karo" — wapas chalu karo (youtube commands upar handle ho jaate hain)
             dc.media_play_pause()
             response = "Media playing"
 
@@ -964,14 +1022,17 @@ def run_command(query):
         elif any(k in query for k in ("battery status", "battery percentage", "how much battery", "battery kitni hai", "battery check", "charging status")):
             dc.show_battery_status()
             response = "Battery status told"
+            _spoken = True
 
         elif any(k in query for k in ("show wifi", "wifi list", "saved wifi", "wifi networks", "wifi list dikhao", "wifi password")):
             dc.show_wifi_passwords()
             response = "Wi-Fi networks listed"
+            _spoken = True
 
         elif any(k in query for k in ("ip address", "show ip", "what is my ip", "ip kya hai", "ip address batao", "network ip")):
             dc.show_ip_address()
             response = "IP address told"
+            _spoken = True
 
         # ══════════════════════════════════════════════════════════
         #  SEARCH (Multiple Engines)
@@ -1147,53 +1208,113 @@ def run_command(query):
             else:
                 openCommand(query)
                 response = "Opening ChatGPT"
+            _spoken = True
 
         # ══════════════════════════════════════════════════════════
         #  YOUTUBE PLAY (check before generic "open")
         # ══════════════════════════════════════════════════════════
 
-        elif "on youtube" in query or "play on youtube" in query or "youtube pe chalao" in query:
-            from engine.features import PlayYoutube
-            PlayYoutube(query)
-            response = "Playing on YouTube"
+        # ══════════════════════════════════════════════════════════
+        #  YOUTUBE PLAY — MUST be BEFORE generic "open" branch
+        #  Patterns:
+        #    "play X on youtube / youtube pe"
+        #    "open youtube and play X"
+        #    "open youtube play X"          ← NEW
+        #    "youtube mein X chalao"
+        #    "youtube X play karo"
+        #    "play the song X on youtube"   ← NEW
+        # ══════════════════════════════════════════════════════════
 
-        elif "play youtube" in query or "youtube play" in query:
-            from engine.features import PlayYoutube
-            PlayYoutube(query)
-            response = "Playing on YouTube"
-
-        # ── Smart YouTube: "open youtube and play X" / "youtube mein X chalao" ──
-        elif ("youtube" in query and any(k in query for k in (
-            "and play", "play karo", "chalao", "chala do", "laga do",
-            "play kar", "song play", "music play", "video play", "open and play"
-        ))):
+        elif "youtube" in query and any(k in query for k in (
+            "play", "chalao", "chala do", "laga do", "play karo",
+            "play kar", "song play", "music play", "video play",
+            "and play", "open and play", "the song", "song"
+        )):
             import re as _re_yt
-            # Song name extract karo — "and play X", "play karo X", "chalao X" ke baad
             song = ""
+            # Pattern list — most specific first
             for pat in (
-                r"open\s+youtube\s+and\s+play\s+(.+)",
-                r"youtube\s+(?:mein|pe|par|on)?\s*(.+?)\s+(?:chalao|chala\s+do|laga\s+do|play\s+karo|play\s+kar)",
+                r"open\s+youtube\s+(?:and\s+)?play\s+(?:the\s+song\s+)?(.+)",
+                r"play\s+(?:the\s+song\s+)?(.+?)\s+(?:on|pe|par|mein)\s+youtube",
+                r"youtube\s+(?:pe|par|mein|on)?\s+play\s+(?:the\s+song\s+)?(.+)",
+                r"youtube\s+(?:mein|pe|par|on)?\s*(.+?)\s+(?:chalao|chala\s*do|laga\s*do|play\s*karo|play\s*kar)",
                 r"youtube\s+(?:mein|pe|par|on)?\s*(.+?)\s+play",
-                r"(?:play|chalao|chala\s+do|laga\s+do)\s+(.+?)\s+(?:on|pe|par|mein)?\s*youtube",
-                r"youtube.+?(?:and\s+play|play\s+karo|chalao|chala\s+do|laga\s+do)\s+(.+)",
+                r"(?:play|chalao|chala\s*do|laga\s*do)\s+(.+?)\s+(?:on|pe|par|mein)?\s*youtube",
+                r"youtube.+?(?:and\s+play|play\s+karo|chalao|chala\s*do|laga\s*do)\s+(.+)",
             ):
                 m = _re_yt.search(pat, query, _re_yt.IGNORECASE)
                 if m:
                     song = m.group(1).strip()
                     break
+
+            # Fallback — strip all youtube/play/open keywords
             if not song:
-                # fallback — sab kuch jo "youtube" ke baad hai
-                song = query.replace("open", "").replace("youtube", "").replace("and play", "").replace("play karo", "").replace("chalao", "").replace("chala do", "").replace("laga do", "").replace("play kar", "").strip()
+                song = query
+                for kw in ("open youtube and play", "open youtube play", "play on youtube",
+                           "on youtube", "youtube pe", "youtube par", "youtube mein",
+                           "youtube", "open", "and play", "play the song", "play karo",
+                           "chalao", "chala do", "laga do", "play kar", "play", "the song"):
+                    song = song.replace(kw, " ")
+                song = " ".join(song.split()).strip()
+
             if song and len(song) > 1:
                 from engine.features import PlayYoutube
                 speak(f"YouTube pe {song} chala raha hoon")
                 PlayYoutube(f"play {song} on youtube")
                 response = f"Playing {song} on YouTube"
+                _spoken = True
             else:
+                # song name nahi mila — sirf YouTube open karo
                 import webbrowser
                 webbrowser.open("https://www.youtube.com/")
                 speak("YouTube khol diya")
                 response = "Opening YouTube"
+                _spoken = True
+
+        elif "on youtube" in query or "play on youtube" in query or "youtube pe chalao" in query:
+            from engine.features import PlayYoutube
+            PlayYoutube(query)
+            response = "Playing on YouTube"
+            _spoken = True
+
+        elif "play youtube" in query or "youtube play" in query:
+            from engine.features import PlayYoutube
+            PlayYoutube(query)
+            response = "Playing on YouTube"
+            _spoken = True
+
+        # ── "play <song>" — sirf "play believer" bolne par bhi YouTube pe play ──
+        elif query.startswith("play ") and len(query) > 5:
+            song = query[5:].strip()
+            # ignore agar ye media control keywords hain
+            if not any(k == song for k in ("music", "pause", "next", "prev", "stop", "resume")):
+                from engine.features import PlayYoutube
+                speak(f"YouTube pe {song} chala raha hoon")
+                PlayYoutube(f"play {song} on youtube")
+                response = f"Playing {song} on YouTube"
+                _spoken = True
+
+        # ── Hinglish: "believer bajao", "tere bina chala do", "kesariya sunao" ──
+        elif any(query.endswith(k) for k in (
+            " bajao", " baja do", " chalao", " chala do",
+            " laga do", " laga", " sunao", " suna do", " suna"
+        )):
+            song = query
+            for suffix in (" bajao", " baja do", " chalao", " chala do",
+                           " laga do", " laga", " sunao", " suna do", " suna"):
+                if song.endswith(suffix):
+                    song = song[:-len(suffix)].strip()
+                    break
+            # common filler prefixes remove karo
+            for prefix in ("zara ", "ek baar ", "please ", "thoda ", "abhi ", "mujhe "):
+                if song.startswith(prefix):
+                    song = song[len(prefix):].strip()
+            if song and len(song) > 1:
+                from engine.features import PlayYoutube
+                speak(f"YouTube pe {song} chala raha hoon")
+                PlayYoutube(f"play {song} on youtube")
+                response = f"Playing {song} on YouTube"
+                _spoken = True
 
         # ══════════════════════════════════════════════════════════
         #  OPEN APP / WEBSITE (generic, catches everything else with "open")
@@ -1204,18 +1325,21 @@ def run_command(query):
             app = query.replace("open", "").strip()
             openCommand(query)
             response = f"Opening {app}" if app else "Opening"
+            _spoken = True
 
         elif "launch" in query:
             from engine.features import openCommand
             app = query.replace("launch", "").strip()
             openCommand(query.replace("launch", "open"))
             response = f"Launching {app}" if app else "Launching"
+            _spoken = True
 
         elif "kholo" in query or "chalao" in query or "shuru karo" in query or "start karo" in query:
             from engine.features import openCommand
             app = query.replace("kholo", "").replace("chalao", "").replace("shuru karo", "").replace("start karo", "").strip()
             openCommand(f"open {app}")
             response = f"Opening {app}" if app else "Opening"
+            _spoken = True
 
         # ══════════════════════════════════════════════════════════
         #  CONTACTS / WHATSAPP
@@ -1239,9 +1363,10 @@ def run_command(query):
                 elif "phone call" in query or "whatsapp call" in query:
                     makeCall(name, contact_no)
                     response = f"Calling {name}"
+                _spoken = True   # whatsApp/makeCall/sendMessage internally speak
             else:
                 response = "Contact not found"
-                speak(response)
+                _spoken = True; speak(response)
 
         # ══════════════════════════════════════════════════════════
         #  TIME / DATE (extra variants)
@@ -1251,19 +1376,19 @@ def run_command(query):
             from datetime import datetime
             t = datetime.now().strftime("%I:%M %p")
             response = f"The current time is {t}"
-            speak(response)
+            _spoken = True; speak(response)
 
         elif any(k in query for k in ("aaj ki date", "date kya hai", "today date", "what is date", "date batao")):
             from datetime import datetime
             d = datetime.now().strftime("%B %d, %Y")
             response = f"Today is {d}"
-            speak(response)
+            _spoken = True; speak(response)
 
         elif any(k in query for k in ("aaj kaun sa din", "day kya hai", "what day", "day of week")):
             from datetime import datetime
             day = datetime.now().strftime("%A")
             response = f"Today is {day}"
-            speak(response)
+            _spoken = True; speak(response)
 
         # ══════════════════════════════════════════════════════════
         #  GREETINGS / IDENTITY (extra variants)
@@ -1279,25 +1404,25 @@ def run_command(query):
             else:
                 gr = "Good evening Sir! Bataiye aaj kya challenge hai?"
             response = gr
-            speak(gr)
+            _spoken = True; speak(gr)
 
         elif any(k in query for k in ("your name", "who are you", "naam kya hai tumhara", "aap kaun ho", "kaun ho tum", "tumhara naam kya hai")):
             response = "Main Jarvis hoon, aapka personal AI assistant. Aapke liye haazir hoon!"
-            speak(response)
+            _spoken = True; speak(response)
 
         elif any(k in query for k in ("how are you", "kaise ho", "kya haal hai", "kaise ho aap")):
             response = "Main bilkul theek hoon Sir! Dhanyavaad. Aap bataiye, aap kaise hain?"
-            speak(response)
+            _spoken = True; speak(response)
 
         elif any(k in query for k in ("thank you", "dhanyavaad", "shukriya", "thanks", "bahut bahut dhanyavaad")):
             response = "Bas yahi toh meri naukri hai Sir! Agar aur kuch chahiye toh boliye."
-            speak(response)
+            _spoken = True; speak(response)
 
         elif any(k in query for k in ("who made you", "banaya kisne", "creator kon hai", "developer kon hai")):
             response = "Mujhe mere pyaare coder Sir ne banaya hai, jinke liye main 24x7 khidmat mein haazir hoon!"
-            speak(response)
+            _spoken = True; speak(response)
 
-        elif "joke" in query or "chutkula" in query or "suna do ek joke":
+        elif "joke" in query or "chutkula" in query or "suna do ek joke" in query:
             _jokes = [
                 "Programmers kyun car nahi lete? Kyunki woh har sign pe 'This is not a bug, it's a feature' padh ke confuse ho jate hain!",
                 "Ek programmer ne doctor ko bola: 'Doctor sahab, main sote huye bug fix kar deta hoon!' Doctor bola: 'Aapko sleep apnea nahi, sleep API bug hai!'",
@@ -1308,7 +1433,7 @@ def run_command(query):
             import random as _rnd
             j = _rnd.choice(_jokes)
             response = j
-            speak(j)
+            _spoken = True; speak(j)
 
         elif any(k in query for k in ("kya kar sakte ho", "kya kar sakta hai", "kya kar loge", "what can you do", "help me", "help jarvis", "functions", "features")):
             features_msg = ("Main aapke liye yeh sab kar sakta hoon: "
@@ -1321,7 +1446,7 @@ def run_command(query):
                 "7. Translate, calculate, WhatsApp messages/calls, YouTube play, emoji, dictation mode. "
                 "Bataiye kya chahiye!")
             response = features_msg
-            speak(features_msg)
+            _spoken = True; speak(features_msg)
 
         # ══════════════════════════════════════════════════════════
         #  CHATBOT FALLBACK
@@ -1330,12 +1455,21 @@ def run_command(query):
         else:
             from engine.features import chatBot
             response = chatBot(query) or f"I heard: {query}"
+            _spoken = True   # chatBot() already calls speak() internally
 
     except Exception as e:
         print(f"[CMD Error]: {e}")
         import traceback
         traceback.print_exc()
         response = "Sorry, something went wrong."
+        _spoken = True; speak(response)
+
+    # ── Universal speak — har command ke baad Jarvis bolta hai ──────────
+    if response and not _spoken:
         speak(response)
+
+    # ── Push to activity log ─────────────────────────────────────────────
+    if response:
+        _push_event(f"JARVIS ◀ {response}", "success")
 
     return response

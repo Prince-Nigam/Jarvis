@@ -848,9 +848,8 @@ def openCommand(query):
 
 
 def PlayYoutube(query):
-    if kit is None:
-        speak("YouTube feature is not available")
-        return
+    from urllib.parse import quote
+    import webbrowser
 
     search_term = extract_yt_term(query)
     if not search_term:
@@ -858,7 +857,28 @@ def PlayYoutube(query):
         return
 
     speak("Playing " + search_term + " on YouTube")
-    kit.playonyt(search_term)
+
+    # youtube-search se pehla video ID nikalo — seedha watch URL open hoga
+    try:
+        from youtube_search import YoutubeSearch
+        results = YoutubeSearch(search_term, max_results=1).to_dict()
+        if results:
+            video_id = results[0]["id"]
+            url = f"https://www.youtube.com/watch?v={video_id}"
+            if os.path.exists(EDGE_PATH):
+                subprocess.Popen([EDGE_PATH, url])
+            else:
+                webbrowser.open(url)
+            return
+    except Exception as e:
+        print(f"[YouTube] Search error: {e}")
+
+    # Fallback — search results page (autoplay nahi hoga)
+    url = f"https://www.youtube.com/results?search_query={quote(search_term)}"
+    if os.path.exists(EDGE_PATH):
+        subprocess.Popen([EDGE_PATH, url])
+    else:
+        webbrowser.open(url)
 
 
 def findContact(query):
