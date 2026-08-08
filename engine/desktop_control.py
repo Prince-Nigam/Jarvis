@@ -579,13 +579,16 @@ def snap_down():
     speak("Window snapped down")
 
 def tile_windows():
+    """Tile windows side by side using Win+Left / Win+Right."""
     if not _HAS_GUI: return
     try:
-        subprocess.Popen(["taskmgr.exe"])
-    except Exception:
-        pass
-    pyautogui.hotkey("win", "right")
-    speak("Arranging windows")
+        # Snap current window to left half, then switch and snap next to right
+        pyautogui.hotkey("win", "left")
+        time.sleep(0.3)
+        pyautogui.hotkey("win", "right")
+        speak("Windows tiled")
+    except Exception as e:
+        print(f"[TileWindows] Error: {e}")
 
 def restart_windows_explorer():
     """Restart explorer.exe if desktop/taskbar hangs."""
@@ -888,13 +891,6 @@ def open_narrator():
         speak("Narrator started")
     except Exception as e:
         print(f"[Narrator] Error: {e}")
-
-def open_magnifier_tool():
-    try:
-        subprocess.Popen(["magnify.exe"])
-        speak("Magnifier opened")
-    except Exception as e:
-        print(f"[Magnify] Error: {e}")
 
 def open_wordpad():
     try:

@@ -23,26 +23,6 @@ try:
 except ImportError:
     sr = None
 
-# #region debug-point helpers:wakeup-jarvish-no-response
-import json as _dbg_json, urllib.request as _dbg_req, os as _dbg_os
-_DBG_P = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.dbg', 'wakeup-jarvish-no-response.env')
-_DBG_U, _DBG_S = 'http://127.0.0.1:7777/event', 'wakeup-jarvish-no-response'
-try:
-    with open(_DBG_P) as _f: _c = _f.read()
-    for _l in _c.split('\n'):
-        if _l.startswith('DEBUG_SERVER_URL='): _DBG_U = _l.split('=',1)[1].strip()
-        elif _l.startswith('DEBUG_SESSION_ID='): _DBG_S = _l.split('=',1)[1].strip()
-except Exception: pass
-_DBG_ITER = 0
-def _dbg(hid, msg, **kw):
-    global _DBG_ITER; _DBG_ITER += 1
-    try:
-        d = {"sessionId":_DBG_S,"runId":"post-fix","hypothesisId":hid,"location":f"hotword.py","msg":f"[DEBUG] {msg}","data":{"iter":_DBG_ITER, **kw},"ts":int(__import__('time').time()*1000)}
-        r = _dbg_req.Request(_DBG_U, data=_dbg_json.dumps(d).encode(), headers={"Content-Type":"application/json"})
-        _dbg_req.urlopen(r, timeout=0.6).read()
-    except Exception: pass
-# #endregion
-
 # ── Config ─────────────────────────────────────────────────────────────────────
 
 # ── LEVEL 0 (DEEP SLEEP) — sirf ye hi phrase sun ke online aayega ──
@@ -486,14 +466,16 @@ def _idle_command_loop():
         # ════════════════════════════════════════════════════════════════
         if current == STATE_COMMAND:
             print("[HOTWORD] 🟢 COMMAND — boliye aapka command...")
+            _cmd_start = time.time()
             query = takecommand()
 
             if not query or not query.strip():
-                # Timeout — wapas IDLE
-                speak("Koi command nahi suna. 'Jarvish' bol ke dobara try karo.")
-                _wait_for_tts(2.5)
-                with _state_lock:
-                    _state = STATE_IDLE
+                # Agar COMMAND_TIMEOUT_SECONDS guz gaye bina command ke — wapas IDLE
+                if time.time() - _cmd_start >= COMMAND_TIMEOUT_SECONDS:
+                    speak("Koi command nahi suna. 'Jarvish' bol ke dobara try karo.")
+                    _wait_for_tts(2.5)
+                    with _state_lock:
+                        _state = STATE_IDLE
                 continue
 
             last_activity = time.time()
@@ -548,12 +530,8 @@ def _wake_word_loop():
     - Wapas deep sleep aane par, mic fir se grab karo
     """
     global _state
-    # #region debug-point A:wake-loop-entry
-    _dbg('A', 'wake_loop_thread_ENTERED', sr_available=(sr is not None), listening_flag=_listening)
-    # #endregion
 
     if sr is None:
-        _dbg('A', 'speech_recognition_IMPORT_MISSING_hotword_disabled', error='sr is None')
         print("[HOTWORD] ❌ speech_recognition not installed — hotword disabled")
         return
 
@@ -623,25 +601,20 @@ def _wake_word_loop():
                             _silence_counter += 1
                             if _silence_counter % 15 == 0:
                                 print(f"[HOTWORD] 💤 Listening... (noise/silence x{_silence_counter}) — bolo 'Wakeup Jarvish'")
-                            _dbg('B', 'UnknownValueError_SWALLOWED_silence_or_unintelligible', reason='multi_lang_all_unknown', current_energy=recognizer.energy_threshold, silence_count=_silence_counter)
                         except sr.RequestError as e:
-                            _dbg('D', 'Google_SR_RequestError', error=str(e), error_type=type(e).__name__)
                             print(f"[HOTWORD] ⚠️ Google API error: {e} — retrying...")
                             time.sleep(2)
 
                     except sr.WaitTimeoutError:
-                        _dbg('B', 'WaitTimeoutError_no_speech_in_5s_window', timeout=5, current_energy=recognizer.energy_threshold)
+                        pass
                     except Exception as e:
-                        _dbg('A', 'INNER_audio_loop_Exception', error=str(e), error_type=type(e).__name__)
                         print(f"[HOTWORD] Audio error: {e}")
                         time.sleep(0.3)
 
         except OSError as e:
-            _dbg('A', 'OUTER_OSError_MICROPHONE', error=str(e), error_type=type(e).__name__)
             print(f"[HOTWORD] ❌ Microphone error: {e} — retrying in 5s...")
             time.sleep(5)
         except Exception as e:
-            _dbg('A', 'OUTER_FATAL_Exception_in_wake_loop', error=str(e), error_type=type(e).__name__, traceback=__import__('traceback').format_exc()[-800:])
             print(f"[HOTWORD] ❌ Fatal error: {e} — retrying in 5s...")
             time.sleep(5)
 
@@ -663,7 +636,6 @@ def start():
         name="hotword-wake-listener"
     )
     t.start()
-    _dbg('A', 'hotword_start_called_thread_started', listening_flag=_listening, thread_alive=t.is_alive(), thread_name=t.name)
     print("[HOTWORD] ✅ Listener started — bolo 'Wakeup Jarvish' to bring online!")
     return t
 

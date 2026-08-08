@@ -1,104 +1,67 @@
 /**
- * sysinfo.js — polls Python backend for live system stats and updates the
- * left-upper panel every 2 seconds.
+ * sysinfo.js — polls /api/system_stats and updates UI panels
  */
-
 (function () {
     'use strict';
+    var POLL_MS = 2500;
 
-    var POLL_MS = 2000;
-
-    function setBar(barId, pct) {
-        var el = document.getElementById(barId);
+    function setBar(id, pct) {
+        var el = document.getElementById(id);
         if (el) el.style.width = Math.min(100, pct) + '%';
     }
-
     function setTxt(id, txt) {
         var el = document.getElementById(id);
         if (el) el.textContent = txt;
     }
-
-    function applyBarColor(barId, pct) {
-        var el = document.getElementById(barId);
+    function applyBarColor(id, pct) {
+        var el = document.getElementById(id);
         if (!el) return;
-        el.classList.remove('bar-warn', 'bar-crit');
-        if (pct > 85) el.classList.add('bar-crit');
-        else if (pct > 65) el.classList.add('bar-warn');
+        if (pct > 85) { el.style.background = 'linear-gradient(90deg,#330000,#ff2255)'; }
+        else if (pct > 65) { el.style.background = 'linear-gradient(90deg,#331100,#ff6a00)'; }
+        // else keep default
     }
 
-    function updateUI(stats) {
-        // CPU
-        setBar('cpuBar', stats.cpu);
-        applyBarColor('cpuBar', stats.cpu);
-        setTxt('cpuVal', stats.cpu + '%');
+    function updateUI(s) {
+        // Side panel
+        setBar('cpuBar',  s.cpu);          applyBarColor('cpuBar',  s.cpu);
+        setTxt('cpuVal',  s.cpu + '%');
+        setBar('ramBar',  s.ram_percent);  applyBarColor('ramBar',  s.ram_percent);
+        setTxt('ramVal',  s.ram_used + '/' + s.ram_total + 'GB');
+        setBar('diskBar', s.disk_percent); applyBarColor('diskBar', s.disk_percent);
+        setTxt('diskVal', s.disk_used + '/' + s.disk_total + 'GB');
 
-        // RAM
-        setBar('ramBar', stats.ram_percent);
-        applyBarColor('ramBar', stats.ram_percent);
-        setTxt('ramVal', stats.ram_used + ' / ' + stats.ram_total + ' GB');
+        // Header mini stats
+        setTxt('hdrCpuVal', s.cpu + '%');
+        setTxt('hdrRamVal', s.ram_percent + '%');
 
-        // Disk
-        setBar('diskBar', stats.disk_percent);
-        applyBarColor('diskBar', stats.disk_percent);
-        setTxt('diskVal', stats.disk_used + ' / ' + stats.disk_total + ' GB');
-
-        // Temperature
-        if (stats.cpu_temp !== null && stats.cpu_temp !== undefined) {
-            setTxt('tempVal', stats.cpu_temp + ' °C');
-            var tb = document.getElementById('tempBadge');
-            if (tb) {
-                tb.classList.remove('temp-hot', 'temp-ok');
-                tb.classList.add(stats.cpu_temp > 80 ? 'temp-hot' : 'temp-ok');
-            }
-        } else {
-            setTxt('tempVal', 'N/A');
-        }
+        // Temp
+        setTxt('tempVal', s.cpu_temp != null ? s.cpu_temp + ' °C' : 'N/A');
 
         // Battery
-        var batVal = document.getElementById('batVal');
-        var batIcon = document.getElementById('batIcon');
-        if (stats.battery !== null && stats.battery !== undefined) {
-            setTxt('batVal', stats.battery + '%');
-            if (batIcon) {
-                batIcon.className = '';   // clear all bi classes
-                if (stats.battery_charging) {
-                    batIcon.className = 'bi bi-battery-charging bat-charging';
-                } else if (stats.battery <= 20) {
-                    batIcon.className = 'bi bi-battery bat-low';
-                } else if (stats.battery <= 50) {
-                    batIcon.className = 'bi bi-battery-half';
-                } else {
-                    batIcon.className = 'bi bi-battery-full';
-                }
-            }
+        if (s.battery != null) {
+            setTxt('batVal', s.battery + '%');
+            setTxt('hdrBatVal', s.battery + '%');
+            var icon = s.battery_charging ? 'bi-battery-charging' :
+                       s.battery <= 20    ? 'bi-battery' :
+                       s.battery <= 50    ? 'bi-battery-half' : 'bi-battery-full';
+            ['batIcon','hdrBatIcon'].forEach(function(id){
+                var el = document.getElementById(id);
+                if (el) el.className = 'bi ' + icon;
+            });
         } else {
-            setTxt('batVal', 'Plugged');
-            if (batIcon) batIcon.className = 'bi bi-plug-fill';
+            setTxt('batVal', 'AC');
+            setTxt('hdrBatVal', 'AC');
         }
     }
 
     function poll() {
         fetch('/api/system_stats')
-            .then(function (r) { return r.json(); })
-            .then(function (stats) { if (stats) updateUI(stats); })
-            .catch(function () { /* server not ready yet */ });
+            .then(function(r){ return r.json(); })
+            .then(function(s){ if(s) updateUI(s); })
+            .catch(function(){});
     }
 
-    // Start polling — called by controller.js after dashboard is shown
-    // Also poll immediately on dashboard reveal
+    window.startSysStats = function () { poll(); setInterval(poll, POLL_MS); };
     window.refreshSysStats = poll;
-    window.startSysStatPolling = function () {
-        poll();
-        setInterval(poll, POLL_MS);
-    };
-
-    // Fallback: if dashboard is already shown on DOMContentLoaded, start polling
-    document.addEventListener('DOMContentLoaded', function () {
-        var dash = document.getElementById('Dashboard');
-        if (dash && !dash.hidden) {
-            poll();
-            setInterval(poll, POLL_MS);
-        }
-    });
-
+    window.startSysStatPolling = window.startSysStats; // legacy alias
 }());

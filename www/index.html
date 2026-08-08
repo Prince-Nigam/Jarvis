@@ -3,250 +3,177 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jarvis</title>
+    <title>J.A.R.V.I.S</title>
     <link rel="shortcut icon" href="assets/img/logo.ico" type="image/x-icon">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet"
-        integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/modernizr/2.8.3/modernizr.min.js"></script>
-    <link rel="stylesheet" href="assets/vindore/texllate/animate.css">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<!-- ══════════════════════════════════════════════════════════
-     BOOT SCREEN
-══════════════════════════════════════════════════════════ -->
+<!-- ═══════════════════════ BOOT SCREEN ═══════════════════════ -->
 <div id="BootScreen">
-    <div class="boot-center">
-        <div id="Loader" class="svg-frame mb-4">
-            <svg style="--i:0;">
-                <g id="big-outter">
-                    <g id="squares">
-                        <path d="M383.931 285.267C374.922 309.242 360.656 330.88 342.188 348.583C323.72 366.285 301.522 379.599 277.234 387.541L277 386.821C301.181 378.915 323.28 365.659 341.667 348.035C360.053 330.411 374.255 308.869 383.225 285L383.931 285.267Z"
-                            stroke="#00AAFF" stroke-width="6" stroke-linecap="square" stroke-dasharray="1 15"/>
-                    </g>
-                    <g id="bottom-dots">
-                        <path d="M368.63 350.215C350.6 370.742 328.367 387.15 303.437 398.328C278.508 409.505 251.466 415.189 224.146 414.995C196.827 414.801 169.868 408.733 145.1 397.202C120.332 385.672 98.3341 368.949 80.5984 348.168"
-                            stroke="#00AAFF" stroke-width="2" stroke-linecap="square" stroke-dasharray="1 15"/>
-                        <path d="M345.779 148.085C360.806 171.738 368.526 199.298 367.972 227.315C367.419 255.333 358.616 282.566 342.666 305.607L342.147 305.248C358.027 282.309 366.79 255.197 367.341 227.303C367.893 199.409 360.207 171.972 345.246 148.423L345.779 148.085Z"
-                            stroke="#00AAFF" stroke-width="2" stroke-linecap="round" stroke-dasharray="0.5 15"/>
-                    </g>
-                    <g id="top-dots">
-                        <path d="M92.4362 117.897C75.3686 139.201 63.6658 164.291 58.3117 191.059C52.9576 217.826 54.1089 245.488 61.6686 271.718L62.394 271.509C54.8677 245.395 53.7216 217.856 59.0519 191.207C64.3823 164.558 76.0333 139.578 93.0253 118.369L92.4362 117.897Z"
-                            stroke="#00AAFF" stroke-width="2" stroke-linecap="round" stroke-dasharray="0.5 15"/>
-                        <path d="M251.126 44.8182C226.015 41.2368 200.432 42.9587 176.027 49.8728"
-                            stroke="#00AAFF" stroke-width="2" stroke-linecap="square" stroke-dasharray="0.5 15"/>
-                        <path d="M300.89 118.301C274.736 99.5021 242.549 91.1476 210.597 94.8638"
-                            stroke="#00AAFF" stroke-width="4" stroke-linecap="square" stroke-dasharray="0.5 15"/>
-                    </g>
-                    <circle cx="228.5" cy="224.5" r="202" stroke="#00AAFF"/>
-                    <path d="M165.046 416.801C208.726 431.214 256.011 430.328 299.119 414.287C342.228 398.247 378.591 368.008 402.224 328.548C425.858 289.088 435.354 242.758 429.149 197.183C422.944 151.607 401.408 109.502 368.086 77.7961L363.102 83.0341C395.235 113.608 416.001 154.21 421.985 198.158C427.968 242.106 418.811 286.782 396.022 324.833C373.232 362.884 338.167 392.043 296.598 407.511C255.028 422.979 209.432 423.834 167.312 409.935L165.046 416.801Z"
-                        stroke="#00AAFF" stroke-width="4"/>
-                </g>
-            </svg>
-            <svg style="--i:1;">
-                <g id="big-centro">
-                    <circle cx="227.5" cy="224.5" r="158" stroke="#00AAFF"/>
-                    <circle cx="227.5" cy="224.5" r="150" stroke="#00AAFF"/>
-                </g>
-            </svg>
-            <svg style="--i:4;">
-                <g id="center-lines">
-                    <circle cx="225.5" cy="224.5" r="93" stroke="#00AAFF"/>
-                    <path d="M152.445 160.624C135.723 180.1 127.383 205.455 129.26 231.112C131.136 256.768 143.075 280.625 162.451 297.433C181.826 314.242 207.05 322.625 232.575 320.739C258.099 318.853 281.833 306.852 298.555 287.376C315.277 267.9 323.617 242.545 321.74 216.888C319.864 191.232 307.925 167.375 288.549 150.567C269.174 133.758 243.95 125.375 218.425 127.261C192.901 129.147 169.167 141.148 152.445 160.624Z"
-                        stroke="#00AAFF" stroke-width="8" stroke-dasharray="1 20"/>
-                </g>
-            </svg>
-            <svg style="--i:5;">
-                <g id="center">
-                    <circle id="dot" cx="225.5" cy="224.5" r="14" stroke="#00AAFF"/>
-                </g>
-            </svg>
+    <div class="boot-bg"></div>
+    <div class="boot-content">
+        <div class="boot-logo-ring">
+            <svg class="ring r1" viewBox="0 0 200 200"><circle cx="100" cy="100" r="90" stroke="#00d4ff" stroke-width="1" fill="none" stroke-dasharray="4 8"/></svg>
+            <svg class="ring r2" viewBox="0 0 200 200"><circle cx="100" cy="100" r="75" stroke="#0088cc" stroke-width="1.5" fill="none" stroke-dasharray="1 6"/></svg>
+            <svg class="ring r3" viewBox="0 0 200 200"><circle cx="100" cy="100" r="58" stroke="#00d4ff" stroke-width="2" fill="none" stroke-dasharray="20 5"/></svg>
+            <div class="boot-core">
+                <div class="boot-core-inner"></div>
+            </div>
         </div>
-        <div id="FaceAuth" class="mb-4" hidden>
-            <lottie-player src="https://assets2.lottiefiles.com/temp/lf20_XcJCfR.json"
-                background="transparent" speed="1" class="face-animation" loop autoplay></lottie-player>
-        </div>
-        <div id="FaceAuthSuccess" class="mb-4" hidden>
-            <lottie-player src="https://assets1.lottiefiles.com/packages/lf20_lk80fpsm.json"
-                background="transparent" speed="1" class="face-animation" loop autoplay></lottie-player>
-        </div>
-        <div id="HelloGreet" class="mb-4" hidden>
-            <lottie-player src="https://lottie.host/f60d18d4-5199-412c-b687-e5e63ae38f75/CoqjMcJIx0.json"
-                background="transparent" speed="1" class="face-animation" loop autoplay></lottie-player>
-        </div>
-        <h1 id="WishMessage" class="text-center text mt-3 siri-message">Initializing...</h1>
+        <div class="boot-title">J.A.R.V.I.S</div>
+        <div class="boot-subtitle">JUST A RATHER VERY INTELLIGENT SYSTEM</div>
+        <div class="boot-bar-wrap"><div class="boot-bar" id="bootBar"></div></div>
+        <div class="boot-status" id="bootStatus">INITIALIZING SYSTEMS...</div>
     </div>
 </div>
 
-<!-- ══════════════════════════════════════════════════════════
-     DASHBOARD  (3-panel layout)
-══════════════════════════════════════════════════════════ -->
-<div id="Dashboard" hidden>
+<!-- ═══════════════════════ DASHBOARD ═══════════════════════ -->
+<div id="Dashboard" class="hidden">
 
-    <!-- ── LEFT PANEL ─────────────────────────────────────── -->
-    <div id="LeftPanel">
-
-        <!-- TOP: System Stats -->
-        <div id="SysPanel" class="side-panel">
-            <div class="panel-title">
-                <i class="bi bi-cpu"></i> SYSTEM STATS
-                <span id="sysRefreshDot" class="refresh-dot"></span>
-            </div>
-            <div class="stat-row">
-                <div class="stat-label"><i class="bi bi-cpu-fill"></i> CPU</div>
-                <div class="stat-bar-wrap">
-                    <div class="stat-bar"><div id="cpuBar" class="stat-fill cpu-fill" style="width:0%"></div></div>
-                </div>
-                <div id="cpuVal" class="stat-val">0%</div>
-            </div>
-            <div class="stat-row">
-                <div class="stat-label"><i class="bi bi-memory"></i> RAM</div>
-                <div class="stat-bar-wrap">
-                    <div class="stat-bar"><div id="ramBar" class="stat-fill ram-fill" style="width:0%"></div></div>
-                </div>
-                <div id="ramVal" class="stat-val">0 GB</div>
-            </div>
-            <div class="stat-row">
-                <div class="stat-label"><i class="bi bi-device-hdd"></i> DISK C:</div>
-                <div class="stat-bar-wrap">
-                    <div class="stat-bar"><div id="diskBar" class="stat-fill disk-fill" style="width:0%"></div></div>
-                </div>
-                <div id="diskVal" class="stat-val">0 GB</div>
-            </div>
-            <div class="stat-row-small mt-2">
-                <div class="stat-badge" id="tempBadge">
-                    <i class="bi bi-thermometer-half"></i>
-                    <span id="tempVal">-- °C</span>
-                </div>
-                <div class="stat-badge" id="batBadge">
-                    <i class="bi bi-battery-half" id="batIcon"></i>
-                    <span id="batVal">--%</span>
-                </div>
+    <!-- ── HEADER ── -->
+    <header class="jv-header">
+        <div class="hdr-left">
+            <div class="hdr-logo">J.A.R.V.I.S</div>
+            <div class="hdr-tagline">ONLINE</div>
+        </div>
+        <div class="hdr-center">
+            <div class="hdr-time" id="hdrTime">00:00:00</div>
+            <div class="hdr-date" id="hdrDate">--</div>
+        </div>
+        <div class="hdr-right">
+            <div class="hdr-stat" id="hdrCpu"><i class="bi bi-cpu"></i><span id="hdrCpuVal">0%</span></div>
+            <div class="hdr-stat" id="hdrRam"><i class="bi bi-memory"></i><span id="hdrRamVal">0%</span></div>
+            <div class="hdr-stat" id="hdrBat"><i class="bi bi-battery-half" id="hdrBatIcon"></i><span id="hdrBatVal">--%</span></div>
+            <div class="status-pill" id="statusPill">
+                <span class="status-dot" id="statusDot"></span>
+                <span id="statusText">STANDBY</span>
             </div>
         </div>
+    </header>
 
-        <!-- BOTTOM: File Explorer -->
-        <div id="FilePanel" class="side-panel">
-            <div class="panel-title">
-                <i class="bi bi-folder2-open"></i> FILE EXPLORER
-                <button id="openInExplorerBtn" class="panel-icon-btn ms-auto" title="Open in Explorer">
-                    <i class="bi bi-box-arrow-up-right"></i>
-                </button>
-            </div>
-            <div id="fileBreadcrumb" class="file-breadcrumb">
-                <span class="bc-item" data-path="">Drives</span>
-            </div>
-            <div id="fileList" class="file-list"></div>
-        </div>
+    <!-- ── MAIN BODY ── -->
+    <div class="jv-body">
 
-    </div><!-- /LeftPanel -->
+        <!-- LEFT PANEL -->
+        <aside class="jv-left">
 
-    <!-- ── CENTER ─────────────────────────────────────────── -->
-    <div id="MainArea">
-
-        <!-- Oval (idle) -->
-        <section id="Oval">
-            <div class="main-center-wrap">
-                <canvas id="canvasOne" width="600" height="380"></canvas>
-                <div id="JarvisHood">
-                    <div class="square">
-                        <span class="circle"></span>
-                        <span class="circle"></span>
-                        <span class="circle"></span>
-                    </div>
+            <!-- System stats -->
+            <div class="jv-card">
+                <div class="jv-card-title"><i class="bi bi-activity"></i> SYSTEM MONITOR</div>
+                <div class="stat-item">
+                    <div class="stat-lbl"><i class="bi bi-cpu-fill"></i> CPU</div>
+                    <div class="stat-track"><div class="stat-fill s-blue" id="cpuBar" style="width:0%"></div></div>
+                    <div class="stat-num" id="cpuVal">0%</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-lbl"><i class="bi bi-memory"></i> RAM</div>
+                    <div class="stat-track"><div class="stat-fill s-cyan" id="ramBar" style="width:0%"></div></div>
+                    <div class="stat-num" id="ramVal">0 GB</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-lbl"><i class="bi bi-device-hdd"></i> DISK</div>
+                    <div class="stat-track"><div class="stat-fill s-orange" id="diskBar" style="width:0%"></div></div>
+                    <div class="stat-num" id="diskVal">0 GB</div>
+                </div>
+                <div class="stat-badges">
+                    <div class="stat-badge"><i class="bi bi-thermometer-half" style="color:#ff6a00"></i><span id="tempVal">-- °C</span></div>
+                    <div class="stat-badge"><i class="bi bi-battery-half" id="batIcon" style="color:#00d4ff"></i><span id="batVal">--%</span></div>
                 </div>
             </div>
-            <h5 class="text-center mt-2" id="askLabel">Ask me anything</h5>
-            <!-- Last response shown below the sphere -->
-            <p id="lastResponse" class="text-center last-response"></p>
-            <div class="input-row mt-2">
-                <div id="TextInput" class="d-flex">
-                    <input type="text" class="input-field" name="chatbox" id="chatbox" placeholder="type here ...">
-                    <button type="button" id="SendBtn" class="glow-on-hover" hidden><i class="bi bi-send"></i></button>
-                    <button type="button" id="MicBtn" class="glow-on-hover"><i class="bi bi-mic"></i></button>
-                    <button type="button" id="ChatBtn" class="glow-on-hover" data-bs-toggle="offcanvas"
-                        data-bs-target="#offcanvasScrolling" aria-controls="offcanvasScrolling">
-                        <i class="bi bi-chat-dots"></i>
-                    </button>
-                    <button type="button" id="SettingsBtn" class="glow-on-hover"><i class="bi bi-gear"></i></button>
+
+            <!-- Quick commands -->
+            <div class="jv-card">
+                <div class="jv-card-title"><i class="bi bi-lightning-charge-fill"></i> QUICK LAUNCH</div>
+                <div class="quick-grid">
+                    <button class="qbtn" data-cmd="open youtube"><i class="bi bi-youtube"></i>YouTube</button>
+                    <button class="qbtn" data-cmd="open google"><i class="bi bi-google"></i>Google</button>
+                    <button class="qbtn" data-cmd="open whatsapp"><i class="bi bi-whatsapp"></i>WhatsApp</button>
+                    <button class="qbtn" data-cmd="open spotify"><i class="bi bi-music-note-beamed"></i>Spotify</button>
+                    <button class="qbtn" data-cmd="open notepad"><i class="bi bi-file-text"></i>Notepad</button>
+                    <button class="qbtn" data-cmd="open calculator"><i class="bi bi-calculator"></i>Calc</button>
+                    <button class="qbtn" data-cmd="what time is it"><i class="bi bi-clock"></i>Time</button>
+                    <button class="qbtn" data-cmd="open chrome"><i class="bi bi-browser-chrome"></i>Chrome</button>
                 </div>
             </div>
-        </section>
 
-        <!-- SiriWave (speaking) -->
-        <section id="SiriWave" hidden>
-            <div class="siri-wrap">
-                <div id="jarvisResponse" class="hero-message mb-3">Listening...</div>
-                <div id="siri-container"></div>
+            <!-- File Explorer -->
+            <div class="jv-card jv-card-grow">
+                <div class="jv-card-title">
+                    <i class="bi bi-folder2-open"></i> FILE EXPLORER
+                    <button id="openInExplorerBtn" class="icon-btn ms-auto" title="Open in Explorer"><i class="bi bi-box-arrow-up-right"></i></button>
+                </div>
+                <div id="fileBreadcrumb" class="breadcrumb-row"><span class="bc-item" data-path="">Drives</span></div>
+                <div id="fileList" class="file-list"></div>
             </div>
-        </section>
 
-    </div><!-- /MainArea -->
+        </aside>
 
-    <!-- ── RIGHT PANEL ────────────────────────────────────── -->
-    <div id="RightPanel">
+        <!-- CENTER -->
+        <main class="jv-center">
 
-        <!-- Terminal log -->
-        <div id="TerminalPanel" class="side-panel">
-            <div class="panel-title">
-                <i class="bi bi-terminal-fill"></i> SYS LOG
-                <span class="refresh-dot"></span>
+            <!-- IDLE VIEW -->
+            <section id="IdleView">
+                <div class="bubble-wrap">
+                    <canvas id="particleCanvas"></canvas>
+                </div>
+                <div class="last-resp" id="lastResponse"></div>
+                <div class="cmd-bar">
+                    <input type="text" id="chatbox" class="cmd-input" placeholder="Type a command...">
+                    <button id="SendBtn" class="cmd-btn" hidden><i class="bi bi-send-fill"></i></button>
+                    <button id="MicBtn" class="cmd-btn mic-btn"><i class="bi bi-mic-fill"></i></button>
+                    <button id="ChatBtn" class="cmd-btn" data-bs-toggle="offcanvas" data-bs-target="#chatCanvas"><i class="bi bi-chat-dots-fill"></i></button>
+                </div>
+            </section>
+
+            <!-- ACTIVE / SPEAKING VIEW — real SiriWave + message -->
+            <section id="ActiveView" class="hidden">
+                <div class="wave-wrap">
+                    <div class="wave-msg" id="jarvisResponse">Listening...</div>
+                    <div id="siri-container"></div>
+                    <div class="wave-status" id="waveStatus">LISTENING</div>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- RIGHT PANEL -->
+        <aside class="jv-right">
+
+            <!-- Activity log -->
+            <div class="jv-card jv-card-grow">
+                <div class="jv-card-title"><i class="bi bi-terminal-fill"></i> ACTIVITY LOG</div>
+                <div id="terminalLog" class="term-log"></div>
             </div>
-            <div id="terminalLog" class="terminal-log"></div>
-        </div>
 
-        <!-- Quick commands -->
-        <div id="QuickPanel" class="side-panel">
-            <div class="panel-title">
-                <i class="bi bi-lightning-charge-fill"></i> QUICK CMD
+            <!-- Chat history preview -->
+            <div class="jv-card">
+                <div class="jv-card-title"><i class="bi bi-chat-square-dots-fill"></i> LAST COMMANDS</div>
+                <div id="cmdHistory" class="cmd-history"></div>
             </div>
-            <div class="quick-grid">
-                <button type="button" class="quick-btn" data-cmd="open youtube"><i class="bi bi-youtube"></i>YouTube</button>
-                <button type="button" class="quick-btn" data-cmd="open google"><i class="bi bi-google"></i>Google</button>
-                <button type="button" class="quick-btn" data-cmd="open whatsapp"><i class="bi bi-whatsapp"></i>WhatsApp</button>
-                <button type="button" class="quick-btn" data-cmd="open notepad"><i class="bi bi-file-text"></i>Notepad</button>
-                <button type="button" class="quick-btn" data-cmd="what time is it"><i class="bi bi-clock"></i>Time</button>
-                <button type="button" class="quick-btn" data-cmd="what is today's date"><i class="bi bi-calendar3"></i>Date</button>
-                <button type="button" class="quick-btn" data-cmd="open calculator"><i class="bi bi-calculator"></i>Calc</button>
-                <button type="button" class="quick-btn" data-cmd="open chrome"><i class="bi bi-browser-chrome"></i>Chrome</button>
-            </div>
-        </div>
 
-        <!-- Status bar -->
-        <div id="StatusBar">
-            <span class="status-dot status-online" id="serverDot"></span>
-            <span id="serverStatus">JARVIS ONLINE</span>
-            <span id="clockDisplay" style="margin-left:auto;color:#0055aa"></span>
-        </div>
+        </aside>
 
-    </div><!-- /RightPanel -->
+    </div><!-- /jv-body -->
 
 </div><!-- /Dashboard -->
 
-<!-- Chat offcanvas -->
-<div class="offcanvas offcanvas-start chat-canvas" data-bs-scroll="true" data-bs-backdrop="false"
-    tabindex="-1" id="offcanvasScrolling" aria-labelledby="offcanvasScrollingLabel">
+<!-- ── CHAT OFFCANVAS ── -->
+<div class="offcanvas offcanvas-end jv-offcanvas" id="chatCanvas" tabindex="-1">
     <div class="offcanvas-header">
-        <h5 class="offcanvas-title" id="offcanvasScrollingLabel">Chats</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        <h5 class="offcanvas-title">COMMAND HISTORY</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
     </div>
     <div id="chat-canvas-body" class="offcanvas-body"></div>
 </div>
 
 <!-- Scripts -->
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"
-    integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM"
-    crossorigin="anonymous"></script>
-<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.2/jquery-ui.min.js"></script>
-<script src="canvas.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://unpkg.com/siriwave/dist/siriwave.umd.min.js"></script>
-<script src="assets/vindore/texllate/jquery.fittext.js"></script>
-<script src="assets/vindore/texllate/jquery.lettering.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jquery.textillate@0.1.0/jquery.textillate.js"></script>
-<script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
+<script src="canvas.js"></script>
 <script src="main.js"></script>
 <script src="controller.js"></script>
 <script src="sysinfo.js"></script>

@@ -48,7 +48,7 @@ def _get_cursor():
     con = sqlite3.connect(DB_PATH)
     return con, con.cursor()
 
-START_SOUND = os.path.join("www", "assets", "audio", "start_sound.mp3")
+START_SOUND = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "www", "assets", "audio", "start_sound.mp3")
 
 
 def playAssistantSound():

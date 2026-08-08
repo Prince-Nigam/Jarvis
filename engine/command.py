@@ -1,6 +1,6 @@
 """
 command.py — TTS + Speech Recognition for Jarvis
-- Single dedicated TTS thread (avoids SAPI5/COM conflicts)
+- Edge TTS (Microsoft Neural Voice) — natural Indian English voice
 - Queue-based speak() — non-blocking, thread-safe
 - takecommand() with proper error handling
 - run_command() routes queries to correct feature
@@ -9,51 +9,114 @@ import subprocess
 import threading
 import time
 import queue as _queue
+import asyncio
+import os
+import tempfile
 
-# ── TTS setup ─────────────────────────────────────────────────────────────────
+# ── Edge TTS setup ─────────────────────────────────────────────────────────────
+try:
+    import edge_tts
+    _HAS_EDGE_TTS = True
+except ModuleNotFoundError:
+    edge_tts = None
+    _HAS_EDGE_TTS = False
+
+# Fallback: pyttsx3
 try:
     import pyttsx3
-    _HAS_TTS = True
+    _HAS_PYTTSX3 = True
 except ModuleNotFoundError:
     pyttsx3 = None
-    _HAS_TTS = False
+    _HAS_PYTTSX3 = False
+
+# Voice to use — pyttsx3 (David - original Jarvis voice) priority
+# Edge TTS sirf fallback hai agar pyttsx3 na ho
+EDGE_VOICE = "en-IN-PrabhatNeural"
 
 _tts_q      = _queue.Queue()
-_tts_engine = None
+_tts_engine = None   # pyttsx3 fallback engine
 _tts_thread = None
 
 
+def _play_mp3(path: str):
+    """Play MP3 file using pygame mixer."""
+    try:
+        import pygame
+        pygame.mixer.init()
+        pygame.mixer.music.load(path)
+        pygame.mixer.music.play()
+        while pygame.mixer.music.get_busy():
+            time.sleep(0.05)
+        pygame.mixer.music.unload()
+    except Exception as e:
+        print(f"[TTS Play Error]: {e}")
+        # Fallback — PowerShell with correct file path
+        try:
+            subprocess.run(
+                ["powershell", "-c",
+                 f'$p = New-Object Media.SoundPlayer "{path}"; $p.PlaySync()'],
+                timeout=30
+            )
+        except Exception:
+            pass
+
+
+async def _edge_speak_async(text: str):
+    """Generate speech via Edge TTS as MP3 and play via pygame."""
+    tmp = tempfile.NamedTemporaryFile(suffix=".mp3", delete=False)
+    mp3_path = tmp.name
+    tmp.close()
+    try:
+        communicate = edge_tts.Communicate(text, EDGE_VOICE)
+        await communicate.save(mp3_path)
+        _play_mp3(mp3_path)
+    finally:
+        try:
+            os.unlink(mp3_path)
+        except Exception:
+            pass
+
+
 def _tts_worker():
-    """Single dedicated thread — all TTS runs here to avoid COM conflicts."""
+    """Single dedicated TTS thread — pyttsx3 (David voice) primary, Edge TTS fallback."""
     global _tts_engine
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
     while True:
         text = _tts_q.get()
-        if text is None:          # sentinel to shut down
+        if text is None:   # sentinel
             break
         try:
-            if _tts_engine is None:
-                _tts_engine = pyttsx3.init("sapi5")
-                voices = _tts_engine.getProperty("voices")
-                if voices:
-                    _tts_engine.setProperty("voice", voices[0].id)
-                _tts_engine.setProperty("rate", 170)
-            _tts_engine.say(text)
-            _tts_engine.runAndWait()
+            if _HAS_PYTTSX3:
+                # Primary — original Jarvis David voice
+                if _tts_engine is None:
+                    _tts_engine = pyttsx3.init("sapi5")
+                    voices = _tts_engine.getProperty("voices")
+                    if voices:
+                        _tts_engine.setProperty("voice", voices[0].id)  # David
+                    _tts_engine.setProperty("rate", 170)
+                _tts_engine.say(text)
+                _tts_engine.runAndWait()
+            elif _HAS_EDGE_TTS:
+                # Fallback — Edge TTS
+                loop.run_until_complete(_edge_speak_async(text))
         except Exception as e:
             print(f"[TTS Error]: {e}")
-            try:
-                _tts_engine.stop()
-            except Exception:
-                pass
-            _tts_engine = None    # reset so next call reinits
+            if _tts_engine:
+                try:
+                    _tts_engine.stop()
+                except Exception:
+                    pass
+                _tts_engine = None
         finally:
             _tts_q.task_done()
+
+    loop.close()
 
 
 def _ensure_tts_worker():
     global _tts_thread
-    if not _HAS_TTS:
-        return
     if _tts_thread is None or not _tts_thread.is_alive():
         _tts_thread = threading.Thread(
             target=_tts_worker, daemon=True, name="tts-worker"
@@ -83,11 +146,13 @@ except (ModuleNotFoundError, Exception):
 
 
 def _recognize_multi_lang(audio) -> str:
-    """en-IN → hi-IN → en-US multi-language fallback for commands."""
+    """en-IN → hi-IN → en-US multi-language fallback for commands.
+    Reuses the calibrated _recognizer instance (same energy threshold as takecommand).
+    """
     last_err = None
     for lang in ("en-IN", "hi-IN", "en-US"):
         try:
-            text = sr.Recognizer().recognize_google(audio, language=lang)
+            text = _recognizer.recognize_google(audio, language=lang)
             if text and text.strip():
                 return text
         except sr.UnknownValueError as e:
@@ -107,13 +172,14 @@ def _recognize_multi_lang(audio) -> str:
 def speak(text):
     """
     Queue text for TTS output. Non-blocking.
-    All speech is handled by a single background thread.
+    Uses Edge TTS (Microsoft Neural Voice) — natural Indian English.
+    Falls back to pyttsx3 if edge-tts not available.
     """
     text = str(text).strip()
     if not text:
         return
     print(f"[JARVIS]: {text}")
-    if _HAS_TTS:
+    if _HAS_EDGE_TTS or _HAS_PYTTSX3:
         _ensure_tts_worker()
         _tts_q.put(text)
 

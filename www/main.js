@@ -1,71 +1,197 @@
 /**
- * main.js — Jarvis UI logic (Flask REST API)
+ * main.js — Jarvis UI logic (Flask REST API) — v2 redesign
  */
 $(document).ready(function () {
 
-    // ── Siri wave init ─────────────────────────────────────────────────────
+    // ── Real SiriWave init ─────────────────────────────────────────────────
     var siriWave = null;
-    try {
-        if (typeof SiriWave !== 'undefined') {
+    var audioCtx = null;
+    var analyser = null;
+    var micStream = null;
+    var waveAnimId = null;
+
+    function initSiriWave() {
+        if (siriWave) return;
+        try {
             siriWave = new SiriWave({
                 container: document.getElementById('siri-container'),
-                width: 700, height: 180,
-                style: 'ios9', amplitude: '1', speed: '0.30', autostart: true
+                width: 500,
+                height: 120,
+                style: 'ios9',
+                amplitude: 0.1,
+                speed: 0.08,
+                autostart: true,
+                color: '#00d4ff'
             });
+        } catch(e) {
+            console.warn('SiriWave init failed:', e);
         }
-    } catch (e) {}
+    }
 
-    // ── Text animations (only on WishMessage, not response) ───────────────
-    try {
-        $('.text').textillate({
-            loop: true, sync: true,
-            in: { effect: 'bounceIn' }, out: { effect: 'bounceOut' }
-        });
-    } catch (e) {}
+    // Connect real mic to SiriWave amplitude
+    function startMicWave() {
+        if (!siriWave) return;
+        try {
+            navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+            .then(function(stream) {
+                micStream = stream;
+                audioCtx  = new (window.AudioContext || window.webkitAudioContext)();
+                analyser  = audioCtx.createAnalyser();
+                analyser.fftSize = 256;
+                var src = audioCtx.createMediaStreamSource(stream);
+                src.connect(analyser);
+                var dataArr = new Uint8Array(analyser.frequencyBinCount);
 
-    // NOTE: We do NOT apply textillate to .siri-message because it hides
-    // the response text. We set it directly via jQuery .text()
+                function animateWave() {
+                    analyser.getByteFrequencyData(dataArr);
+                    var sum = 0;
+                    for (var i = 0; i < dataArr.length; i++) sum += dataArr[i];
+                    var avg = sum / dataArr.length;
+                    // Scale 0-255 average to 0-2 amplitude
+                    var amp = Math.min(2, (avg / 255) * 4);
+                    if (siriWave) siriWave.setAmplitude(amp);
+                    waveAnimId = requestAnimationFrame(animateWave);
+                }
+                animateWave();
+            })
+            .catch(function() {
+                // Mic permission denied — just show wave with default amplitude
+                if (siriWave) siriWave.setAmplitude(1);
+            });
+        } catch(e) {
+            if (siriWave) siriWave.setAmplitude(1);
+        }
+    }
 
-    // ── Greeting ───────────────────────────────────────────────────────────
-    var hour  = new Date().getHours();
-    var greet = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
-    $('#WishMessage').text(greet + ', Initializing...');
+    function stopMicWave() {
+        if (waveAnimId) { cancelAnimationFrame(waveAnimId); waveAnimId = null; }
+        if (micStream)  { micStream.getTracks().forEach(function(t){ t.stop(); }); micStream = null; }
+        if (audioCtx)   { audioCtx.close(); audioCtx = null; analyser = null; }
+        if (siriWave)   siriWave.setAmplitude(0.05);
+    }
 
-    setTimeout(function () {
-        if (typeof window.runAuthFlow === 'function') window.runAuthFlow();
-    }, 800);
+    // ── Boot sequence ──────────────────────────────────────────────────────
+    var bootMessages = [
+        'LOADING NEURAL CORE...',
+        'INITIALIZING VOICE SYSTEMS...',
+        'CALIBRATING SENSORS...',
+        'ESTABLISHING CONNECTION...',
+        'RUNNING DIAGNOSTICS...',
+        'ALL SYSTEMS NOMINAL...',
+        'J.A.R.V.I.S READY'
+    ];
+    var bootIdx = 0;
+    var bootPct = 0;
+    var bootInterval = setInterval(function () {
+        bootPct = Math.min(bootPct + Math.random() * 18 + 8, 100);
+        $('#bootBar').css('width', bootPct + '%');
+        if (bootIdx < bootMessages.length) {
+            $('#bootStatus').text(bootMessages[bootIdx++]);
+        }
+        if (bootPct >= 100) {
+            clearInterval(bootInterval);
+            $('#bootStatus').text('J.A.R.V.I.S READY');
+            setTimeout(function () {
+                $.post('/api/greet').always(function () {});
+                $('#BootScreen').fadeOut(800, function () {
+                    $('#Dashboard').removeClass('hidden').hide().fadeIn(600);
+                    startClock();
+                    if (typeof window.startSysStats === 'function') window.startSysStats();
+                    if (typeof window.initFileBrowser === 'function') window.initFileBrowser();
+                    if (typeof window.initRightPanel === 'function') window.initRightPanel();
+                    addLog('JARVIS ONLINE', 'success');
+                    addLog('Say "wakeup jarvish" to activate', 'dim');
+                });
+            }, 600);
+        }
+    }, 280);
+
+    // ── Clock ──────────────────────────────────────────────────────────────
+    function startClock() {
+        function tick() {
+            var now = new Date();
+            var h = String(now.getHours()).padStart(2,'0');
+            var m = String(now.getMinutes()).padStart(2,'0');
+            var s = String(now.getSeconds()).padStart(2,'0');
+            $('#hdrTime').text(h + ':' + m + ':' + s);
+            var days = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+            var months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+            $('#hdrDate').text(days[now.getDay()] + ' ' + now.getDate() + ' ' + months[now.getMonth()] + ' ' + now.getFullYear());
+        }
+        tick(); setInterval(tick, 1000);
+    }
 
     // ── Helpers ────────────────────────────────────────────────────────────
+    function showIdle() {
+        $('#ActiveView').addClass('hidden');
+        $('#IdleView').removeClass('hidden');
+        $('#statusPill .status-dot').css('background','var(--blue)');
+        $('#statusText').text('STANDBY');
+        stopMicWave();
+    }
+    function showActive(msg) {
+        initSiriWave();
+        $('#IdleView').addClass('hidden');
+        $('#ActiveView').removeClass('hidden');
+        if (msg) { $('#jarvisResponse').text(msg); }
+        $('#statusPill .status-dot').css({'background':'var(--cyan)','box-shadow':'0 0 8px var(--cyan)'});
+        $('#statusText').text('ACTIVE');
+    }
+
+    window.showHood = showIdle;
+
     function showAssistantText(msg) {
         if (!msg || !msg.trim()) return;
-        // SiriWave section response text
         $('#jarvisResponse').text(msg);
-        // Oval (idle) section — shows last response below sphere
         $('#lastResponse').text('↳ ' + msg);
     }
+
+    window.addLog = function(msg, cls) {
+        var $log = $('#terminalLog');
+        var $line = $('<div class="log-line ' + (cls||'info') + '">').text('> ' + msg);
+        $log.append($line);
+        $log.scrollTop($log[0].scrollHeight);
+        // keep max 80 lines
+        var lines = $log.children();
+        if (lines.length > 80) lines.first().remove();
+    };
+
+    function addCmdHistory(msg, mine) {
+        var $h = $('#cmdHistory');
+        $('<div class="ch-item' + (mine ? ' mine' : '') + '">').text(mine ? '▶ ' + msg : '◀ ' + msg).prependTo($h);
+        var items = $h.children();
+        if (items.length > 10) items.last().remove();
+    }
+
+    window.addReceiverMsg = function(msg) {
+        addCmdHistory(msg, false);
+        var $body = $('#chat-canvas-body');
+        $('<div class="d-flex mb-2"><div class="receiver_message width-size">').text(msg).appendTo($body);
+        $body.scrollTop($body[0].scrollHeight);
+    };
+    window.addSenderMsg = function(msg) {
+        addCmdHistory(msg, true);
+        var $body = $('#chat-canvas-body');
+        $('<div class="d-flex justify-content-end mb-2"><div class="sender_message width-size">').text(msg).appendTo($body);
+        $body.scrollTop($body[0].scrollHeight);
+    };
 
     function buildFallbackReply(message) {
         var t = (message || '').toLowerCase();
         if (t.includes('time'))  return 'The current time is ' + new Date().toLocaleTimeString();
         if (t.includes('date'))  return 'Today is ' + new Date().toLocaleDateString();
         if (t.includes('hello') || t.includes('hi')) return 'Hello Sir! How can I help you?';
-        return 'You said: "' + message + '". Ready for your next command.';
+        return 'Command processed: "' + message + '"';
     }
 
     // ── Process command ────────────────────────────────────────────────────
     function processCommand(text) {
         text = (text || '').trim();
-        if (!text) {
-            showAssistantText('Listening...');
-            return;
-        }
+        if (!text) { showActive('Listening...'); return; }
 
-        if (typeof window.addSenderMsg === 'function') window.addSenderMsg(text);
-        if (typeof window.addLog === 'function')       window.addLog('USER > ' + text, 'cmd');
-
-        $('#Oval').attr('hidden', true).hide();
-        $('#SiriWave').removeAttr('hidden').show();
-        showAssistantText('Working on it...');
+        window.addSenderMsg(text);
+        window.addLog('USER > ' + text, 'cmd');
+        showActive('Processing...');
 
         fetch('/api/command', {
             method: 'POST',
@@ -75,102 +201,96 @@ $(document).ready(function () {
         .then(function (r) { return r.json(); })
         .then(function (data) {
             var reply = (data && data.response && data.response.trim())
-                ? data.response
-                : buildFallbackReply(text);
-
+                ? data.response : buildFallbackReply(text);
             showAssistantText(reply);
-            if (typeof window.addReceiverMsg === 'function') window.addReceiverMsg(reply);
-            if (typeof window.addLog         === 'function') window.addLog('JARVIS > ' + reply, 'success');
-
-            setTimeout(function () {
-                if (typeof window.showHood === 'function') window.showHood();
-            }, 3500);
+            window.addReceiverMsg(reply);
+            window.addLog('JARVIS > ' + reply, 'success');
+            setTimeout(showIdle, 4000);
         })
         .catch(function () {
             var reply = buildFallbackReply(text);
             showAssistantText(reply);
-            if (typeof window.addReceiverMsg === 'function') window.addReceiverMsg(reply);
-            setTimeout(function () {
-                if (typeof window.showHood === 'function') window.showHood();
-            }, 1500);
+            window.addReceiverMsg(reply);
+            setTimeout(showIdle, 2000);
         });
     }
 
+    window.processCommand = processCommand;
+
+    // ── Quick buttons ──────────────────────────────────────────────────────
+    $(document).on('click', '.qbtn', function () {
+        processCommand($(this).data('cmd'));
+    });
+
     // ── Mic button ─────────────────────────────────────────────────────────
     $('#MicBtn').on('click', function () {
-        showAssistantText('Listening...');
-        $('#Oval').attr('hidden', true).hide();
-        $('#SiriWave').removeAttr('hidden').show();
-        if (typeof window.addLog === 'function') window.addLog('Mic activated', 'info');
-
-        // Show a listening timeout indicator
-        var listenTimer = setTimeout(function () {
-            showAssistantText("Still listening...");
-        }, 4000);
+        $(this).addClass('listening');
+        initSiriWave();
+        showActive('Listening...');
+        $('#waveStatus').text('LISTENING');
+        startMicWave();                       // real mic → wave amplitude
+        window.addLog('Mic activated', 'info');
 
         fetch('/api/listen', { method: 'POST' })
             .then(function (r) { return r.json(); })
             .then(function (data) {
-                clearTimeout(listenTimer);
+                $('#MicBtn').removeClass('listening');
+                stopMicWave();
                 var text = (data.text || '').trim();
                 if (text) {
+                    $('#waveStatus').text('PROCESSING');
                     processCommand(text);
                 } else {
                     showAssistantText("Didn't catch that. Try again.");
-                    if (typeof window.addLog === 'function') window.addLog('No speech detected', 'warn');
-                    setTimeout(function () {
-                        if (typeof window.showHood === 'function') window.showHood();
-                    }, 1500);
+                    window.addLog('No speech detected', 'warn');
+                    setTimeout(showIdle, 2000);
                 }
             })
             .catch(function () {
-                clearTimeout(listenTimer);
+                $('#MicBtn').removeClass('listening');
+                stopMicWave();
                 var val = $('#chatbox').val().trim();
-                if (val) {
-                    processCommand(val);
-                } else {
-                    showAssistantText('Microphone not available.');
-                    setTimeout(function () {
-                        if (typeof window.showHood === 'function') window.showHood();
-                    }, 1500);
-                }
+                if (val) processCommand(val);
+                else { showAssistantText('Microphone unavailable.'); setTimeout(showIdle, 1500); }
             });
     });
 
-    // ── Send / Enter ───────────────────────────────────────────────────────
-    function PlayAssistant(message) {
-        if (!message.trim()) return;
-        processCommand(message);
+    // ── Text input ─────────────────────────────────────────────────────────
+    function showHideBtn(val) {
+        if (val.length === 0) { $('#MicBtn').show(); $('#SendBtn').hide(); }
+        else                  { $('#MicBtn').hide(); $('#SendBtn').show(); }
+    }
+    function sendText() {
+        var msg = $('#chatbox').val().trim();
+        if (!msg) return;
+        processCommand(msg);
         $('#chatbox').val('');
-        $('#MicBtn').attr('hidden', false);
-        $('#SendBtn').attr('hidden', true);
+        showHideBtn('');
     }
+    $('#chatbox').on('keyup', function () { showHideBtn($(this).val()); });
+    $('#chatbox').on('keypress', function (e) { if (e.which === 13) sendText(); });
+    $('#SendBtn').on('click', sendText);
 
-    function ShowHideButton(val) {
-        if (val.length === 0) {
-            $('#MicBtn').attr('hidden', false);
-            $('#SendBtn').attr('hidden', true);
-        } else {
-            $('#MicBtn').attr('hidden', true);
-            $('#SendBtn').attr('hidden', false);
-        }
-    }
+    // ── Status poll ────────────────────────────────────────────────────────
+    setInterval(function () {
+        fetch('/api/status')
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                if (d.active) {
+                    $('#statusDot').css({'background':'var(--cyan)','box-shadow':'0 0 8px var(--cyan)'});
+                    $('#statusText').text('ONLINE');
+                } else {
+                    $('#statusDot').css({'background':'var(--blue)','box-shadow':'0 0 6px var(--blue)'});
+                    $('#statusText').text('STANDBY');
+                }
+            }).catch(function(){});
+    }, 3000);
 
-    $('#chatbox').on('keyup', function () { ShowHideButton($(this).val()); });
-    $('#SendBtn').on('click', function () { PlayAssistant($('#chatbox').val()); });
-    $('#chatbox').on('keypress', function (e) {
-        if (e.which === 13) PlayAssistant($(this).val());
-    });
-
-    // Windows keyboard shortcut: Ctrl+Alt+J  (metaKey = Mac Command, not Windows)
+    // keyboard shortcut
     document.addEventListener('keydown', function (e) {
         if (e.ctrlKey && e.altKey && e.key.toLowerCase() === 'j') {
-            e.preventDefault();
-            processCommand('hello');
+            e.preventDefault(); processCommand('hello');
         }
     });
-
-    // Expose processCommand globally for hotword post-wake API call
-    window.processCommand = processCommand;
 
 });
