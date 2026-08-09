@@ -349,16 +349,6 @@ name,mobile_no,email
 Prince Nigam,7459883506,princenigam972@gmail.com
 ```
 
-### Add a Custom App or Website
-In `Database.db` or directly in `engine/init_db.py`:
-```python
-# Add a web command
-("my website", "https://www.mywebsite.com"),
-
-# Add a desktop app (sys_command table)
-# name: "my app",  path: "C:\\Path\\To\\App.exe"
-```
-
 ### Change the Assistant Name
 In `engine/config.py`:
 ```python
