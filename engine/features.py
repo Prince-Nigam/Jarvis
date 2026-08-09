@@ -929,34 +929,40 @@ def PlayYoutube(query):
 def findContact(query):
     words_to_remove = [
         ASSISTANT_NAME,
-        "make",
-        "a",
-        "to",
-        "phone",
-        "call",
-        "send",
-        "message",
-        "whatsapp",
-        "video",
+        "make", "a", "to", "ko", "ke", "liye",
+        "phone", "call", "karo", "karna", "kare",
+        "send", "message", "bhejo", "whatsapp",
+        "video", "please", "sir",
     ]
     query = remove_words(query, words_to_remove)
 
     con, cursor = _get_cursor()
     try:
         query = query.strip().lower()
+        if not query:
+            speak("Please tell me the contact name Sir.")
+            return 0, 0
+
         cursor.execute(
-            "SELECT mobile_no FROM contacts WHERE LOWER(name) LIKE ? OR LOWER(name) LIKE ?",
+            "SELECT name, mobile_no FROM contacts "
+            "WHERE LOWER(name) LIKE ? OR LOWER(name) LIKE ? "
+            "ORDER BY LENGTH(name) ASC LIMIT 1",
             ("%" + query + "%", query + "%"),
         )
-        results = cursor.fetchall()
-        mobile_number_str = str(results[0][0])
+        result = cursor.fetchone()
+        if not result:
+            speak(f"Contact {query} not found Sir.")
+            return 0, 0
 
+        name, mobile_number_str = result
+        mobile_number_str = str(mobile_number_str).replace(" ", "")
         if not mobile_number_str.startswith("+91"):
             mobile_number_str = "+91" + mobile_number_str
 
-        return mobile_number_str, query
-    except Exception:
-        speak("Contact not found")
+        return mobile_number_str, name
+    except Exception as e:
+        print(f"[findContact] Error: {e}")
+        speak("Contact not found Sir.")
         return 0, 0
     finally:
         con.close()

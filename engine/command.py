@@ -1536,28 +1536,53 @@ def run_command(query):
         #  CONTACTS / WHATSAPP
         # ══════════════════════════════════════════════════════════
 
-        elif any(k in query for k in ("send message", "phone call", "video call", "whatsapp message", "whatsapp call")):
-            from engine.features import findContact, makeCall, sendMessage, whatsApp
+        # ══════════════════════════════════════════════════════════
+        #  WHATSAPP — 3 commands only:
+        #  1. "send message to X" / "X ko message karo"
+        #  2. "call X" / "phone call X" / "X ko call karo"
+        #  3. "video call X" / "X ko video call karo"
+        # ══════════════════════════════════════════════════════════
+
+        elif any(k in query for k in (
+            "send message", "message karo", "message bhejo", "whatsapp karo",
+            "phone call", "call karo", "ko call", "call me", "whatsapp call",
+            "video call", "video karo",
+        )):
+            from engine.features import findContact, makeCall, whatsApp
             contact_no, name = findContact(query)
             if contact_no and contact_no != 0:
-                if "send message" in query or "whatsapp message" in query:
-                    speak("What message should I send?")
+
+                # ── Message ──────────────────────────────────────────────
+                if any(k in query for k in (
+                    "send message", "message karo", "message bhejo",
+                    "whatsapp karo", "whatsapp message"
+                )):
+                    speak(f"What message should I send to {name} Sir?")
                     msg = takecommand()
-                    if msg:
-                        sendMessage(msg, contact_no, name)
-                        response = f"Message sent to {name}"
+                    if msg and msg.strip():
+                        whatsApp(contact_no, msg, "message", name)
+                        response = f"Message sent to {name} Sir"
                     else:
+                        speak("No message heard Sir.")
                         response = "No message heard"
-                elif "video call" in query:
+
+                # ── Video Call ────────────────────────────────────────────
+                elif any(k in query for k in ("video call", "video karo")):
+                    speak(f"Starting video call with {name} Sir")
                     whatsApp(contact_no, "", "video call", name)
                     response = f"Video call with {name}"
-                elif "phone call" in query or "whatsapp call" in query:
+
+                # ── Phone / WhatsApp Call ─────────────────────────────────
+                else:
+                    speak(f"Calling {name} Sir")
                     makeCall(name, contact_no)
                     response = f"Calling {name}"
-                _spoken = True   # whatsApp/makeCall/sendMessage internally speak
+
+                _spoken = True
             else:
+                speak("Contact not found Sir. Please check the name.")
                 response = "Contact not found"
-                _spoken = True; speak(response)
+                _spoken = True
 
         # ══════════════════════════════════════════════════════════
         #  TIME / DATE (extra variants)
