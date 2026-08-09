@@ -877,11 +877,24 @@ def PlayYoutube(query):
     import webbrowser
 
     search_term = extract_yt_term(query)
-    if not search_term:
-        speak("Please tell me what to play on YouTube")
-        return
 
-    speak("Playing " + search_term + " on YouTube")
+    # Agar search_term generic/empty hai to user se poochho
+    _bad_terms = {"the song", "song", "a song", "music", "koi song", "ek song", "the music", ""}
+    if not search_term or search_term.lower().strip() in _bad_terms or len(search_term.strip()) < 2:
+        speak("Kaunsa song chalana hai Sir? Naam batao.")
+        try:
+            from engine.command import takecommand
+            song_name = takecommand()
+            if song_name and song_name.strip():
+                search_term = song_name.strip()
+            else:
+                speak("Song ka naam nahi suna Sir.")
+                return
+        except Exception:
+            speak("Song ka naam batao please.")
+            return
+
+    speak("YouTube pe " + search_term + " chala raha hoon Sir")
 
     # youtube-search se pehla video ID nikalo — seedha watch URL open hoga
     try:
@@ -894,7 +907,7 @@ def PlayYoutube(query):
                 subprocess.Popen([EDGE_PATH, url])
             else:
                 webbrowser.open(url)
-            # ── Auto-learn: agle baar seedha play hoga ───────────────────
+            # ── Auto-learn ────────────────────────────────────────────────
             try:
                 from engine.command import learn
                 learn(f"play {search_term}", "song", search_term)
@@ -905,7 +918,7 @@ def PlayYoutube(query):
     except Exception as e:
         print(f"[YouTube] Search error: {e}")
 
-    # Fallback — search results page (autoplay nahi hoga)
+    # Fallback — search results page
     url = f"https://www.youtube.com/results?search_query={quote(search_term)}"
     if os.path.exists(EDGE_PATH):
         subprocess.Popen([EDGE_PATH, url])

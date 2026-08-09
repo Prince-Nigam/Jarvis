@@ -1449,16 +1449,15 @@ def run_command(query):
 
             if song and len(song) > 1:
                 from engine.features import PlayYoutube
-                speak(f"YouTube pe {song} chala raha hoon")
+                speak(f"YouTube pe {song} chala raha hoon Sir")
                 PlayYoutube(f"play {song} on youtube")
                 response = f"Playing {song} on YouTube"
                 _spoken = True
             else:
-                # song name nahi mila — sirf YouTube open karo
-                import webbrowser
-                webbrowser.open("https://www.youtube.com/")
-                speak("YouTube khol diya")
-                response = "Opening YouTube"
+                # song name nahi mila — user se poochho
+                from engine.features import PlayYoutube
+                PlayYoutube("play  on youtube")  # bad_terms check → will ask user
+                response = "Kaunsa song chahiye?"
                 _spoken = True
 
         elif "on youtube" in query or "play on youtube" in query or "youtube pe chalao" in query:

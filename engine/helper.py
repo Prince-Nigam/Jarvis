@@ -6,28 +6,46 @@ import time
 def extract_yt_term(command):
     """
     Extract song/video name from YouTube play command.
-    Handles multiple patterns:
-      "play X on youtube"
-      "play X"
-      "X on youtube"
+    Returns clean song name or None.
     """
     if not command:
         return None
 
+    cmd = command.strip()
+
     # Pattern 1: "play X on youtube"
-    match = re.search(r'play\s+(.*?)\s+on\s+youtube', command, re.IGNORECASE)
-    if match and match.group(1).strip():
-        return match.group(1).strip()
+    m = re.search(r'play\s+(.+?)\s+on\s+youtube', cmd, re.IGNORECASE)
+    if m:
+        t = m.group(1).strip()
+        if t:
+            return t
 
-    # Pattern 2: "play X" (no "on youtube")
-    match = re.search(r'^play\s+(.+)$', command.strip(), re.IGNORECASE)
-    if match and match.group(1).strip():
-        return match.group(1).strip()
+    # Pattern 2: "open youtube and play X" / "open youtube play X"
+    m = re.search(r'(?:open\s+)?youtube\s+(?:and\s+)?play\s+(?:the\s+song\s+)?(.+)', cmd, re.IGNORECASE)
+    if m:
+        t = m.group(1).strip()
+        if t:
+            return t
 
-    # Pattern 3: remove "on youtube" and return rest
-    cleaned = re.sub(r'\s*on\s+youtube\s*', '', command, flags=re.IGNORECASE).strip()
-    cleaned = re.sub(r'\s*youtube\s*', '', cleaned, flags=re.IGNORECASE).strip()
-    if cleaned:
+    # Pattern 3: "play X" (no youtube mentioned)
+    m = re.search(r'^play\s+(.+)$', cmd, re.IGNORECASE)
+    if m:
+        t = m.group(1).strip()
+        # remove trailing "on youtube" if present
+        t = re.sub(r'\s+on\s+youtube\s*$', '', t, flags=re.IGNORECASE).strip()
+        if t:
+            return t
+
+    # Pattern 4: strip all youtube/open/play noise and return what's left
+    cleaned = cmd
+    for noise in ("open youtube and play", "open youtube play", "on youtube",
+                  "youtube pe", "youtube par", "youtube mein", "play on youtube",
+                  "youtube", "open", "play the song", "play karo", "the song",
+                  "chalao", "chala do", "laga do", "and play", "play"):
+        cleaned = re.sub(r'\b' + re.escape(noise) + r'\b', ' ', cleaned, flags=re.IGNORECASE)
+    cleaned = ' '.join(cleaned.split()).strip()
+
+    if cleaned and len(cleaned) > 1:
         return cleaned
 
     return None
