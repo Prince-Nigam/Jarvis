@@ -1,0 +1,11 @@
+import sys, pyttsx3
+text = sys.stdin.read()
+if not text.strip(): sys.exit(0)
+e = pyttsx3.init('sapi5')
+v = e.getProperty('voices')
+if v: e.setProperty('voice', v[0].id)
+e.setProperty('rate', 165)
+e.setProperty('volume', 1.0)
+e.say(text)
+e.runAndWait()
+e.stop()

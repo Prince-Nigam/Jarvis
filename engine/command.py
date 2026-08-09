@@ -1,6 +1,6 @@
 """
 command.py — TTS + Speech Recognition for Jarvis
-- Edge TTS (Microsoft Neural Voice) — natural Indian English voice
+- win32com SAPI5 — Windows native, works in any thread/server
 - Queue-based speak() — non-blocking, thread-safe
 - takecommand() with proper error handling
 - run_command() routes queries to correct feature
@@ -9,17 +9,15 @@ import subprocess
 import threading
 import time
 import queue as _queue
-import asyncio
 import os
-import tempfile
 
-# ── Edge TTS setup ─────────────────────────────────────────────────────────────
+# ── TTS: win32com SAPI5 (primary — always works on Windows) ───────────────────
 try:
-    import edge_tts
-    _HAS_EDGE_TTS = True
-except ModuleNotFoundError:
-    edge_tts = None
-    _HAS_EDGE_TTS = False
+    import win32com.client as _win32
+    _HAS_WIN32 = True
+except ImportError:
+    _win32 = None
+    _HAS_WIN32 = False
 
 # Fallback: pyttsx3
 try:
@@ -29,90 +27,71 @@ except ModuleNotFoundError:
     pyttsx3 = None
     _HAS_PYTTSX3 = False
 
-# Voice to use — pyttsx3 (David - original Jarvis voice) priority
-# Edge TTS sirf fallback hai agar pyttsx3 na ho
-EDGE_VOICE = "en-IN-PrabhatNeural"
-
 _tts_q      = _queue.Queue()
-_tts_engine = None   # pyttsx3 fallback engine
 _tts_thread = None
-
-
-def _play_mp3(path: str):
-    """Play MP3 file using pygame mixer."""
-    try:
-        import pygame
-        pygame.mixer.init()
-        pygame.mixer.music.load(path)
-        pygame.mixer.music.play()
-        while pygame.mixer.music.get_busy():
-            time.sleep(0.05)
-        pygame.mixer.music.unload()
-    except Exception as e:
-        print(f"[TTS Play Error]: {e}")
-        # Fallback — PowerShell with correct file path
-        try:
-            subprocess.run(
-                ["powershell", "-c",
-                 f'$p = New-Object Media.SoundPlayer "{path}"; $p.PlaySync()'],
-                timeout=30
-            )
-        except Exception:
-            pass
-
-
-async def _edge_speak_async(text: str):
-    """Generate speech via Edge TTS as MP3 and play via pygame."""
-    tmp = tempfile.NamedTemporaryFile(suffix=".mp3", delete=False)
-    mp3_path = tmp.name
-    tmp.close()
-    try:
-        communicate = edge_tts.Communicate(text, EDGE_VOICE)
-        await communicate.save(mp3_path)
-        _play_mp3(mp3_path)
-    finally:
-        try:
-            os.unlink(mp3_path)
-        except Exception:
-            pass
+_sapi       = None   # win32com SAPI voice — created once inside TTS thread
 
 
 def _tts_worker():
-    """Single dedicated TTS thread — pyttsx3 (David voice) primary, Edge TTS fallback."""
-    global _tts_engine
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
+    """
+    Dedicated TTS thread.
+    win32com SAPI5 — created once per thread, reused for all messages.
+    Guaranteed audio output from any background thread on Windows.
+    """
+    global _sapi
+    # COM must be initialized per thread
+    try:
+        import pythoncom
+        pythoncom.CoInitialize()
+    except Exception:
+        pass
+
+    # Create SAPI voice once
+    if _HAS_WIN32:
+        try:
+            _sapi = _win32.Dispatch("SAPI.SpVoice")
+            _sapi.Rate = 0      # -10 (slow) to 10 (fast), 0 = normal
+            _sapi.Volume = 100  # 0-100
+        except Exception as e:
+            print(f"[TTS] SAPI init error: {e}")
+            _sapi = None
 
     while True:
         text = _tts_q.get()
-        if text is None:   # sentinel
+        if text is None:
+            _tts_q.task_done()
             break
         try:
-            if _HAS_PYTTSX3:
-                # Primary — original Jarvis David voice
-                if _tts_engine is None:
-                    _tts_engine = pyttsx3.init("sapi5")
-                    voices = _tts_engine.getProperty("voices")
-                    if voices:
-                        _tts_engine.setProperty("voice", voices[0].id)  # David
-                    _tts_engine.setProperty("rate", 170)
-                _tts_engine.say(text)
-                _tts_engine.runAndWait()
-            elif _HAS_EDGE_TTS:
-                # Fallback — Edge TTS
-                loop.run_until_complete(_edge_speak_async(text))
+            if _sapi is not None:
+                _sapi.Speak(str(text))
+            elif _HAS_PYTTSX3:
+                # pyttsx3 fallback
+                e = pyttsx3.init("sapi5")
+                e.setProperty("rate", 165)
+                e.setProperty("volume", 1.0)
+                e.say(str(text))
+                e.runAndWait()
+                e.stop()
+            else:
+                print(f"[TTS] No engine available — text: {text}")
         except Exception as e:
             print(f"[TTS Error]: {e}")
-            if _tts_engine:
-                try:
-                    _tts_engine.stop()
-                except Exception:
-                    pass
-                _tts_engine = None
+            # Reset SAPI on error
+            try:
+                _sapi = _win32.Dispatch("SAPI.SpVoice") if _HAS_WIN32 else None
+                if _sapi:
+                    _sapi.Rate = 0
+                    _sapi.Volume = 100
+            except Exception:
+                _sapi = None
         finally:
             _tts_q.task_done()
 
-    loop.close()
+    try:
+        import pythoncom
+        pythoncom.CoUninitialize()
+    except Exception:
+        pass
 
 
 def _ensure_tts_worker():
@@ -323,16 +302,15 @@ def recall(query: str):
 def speak(text):
     """
     Queue text for TTS output. Non-blocking.
-    Uses Edge TTS (Microsoft Neural Voice) — natural Indian English.
-    Falls back to pyttsx3 if edge-tts not available.
+    Uses win32com SAPI5 (primary) — works from any thread/server.
+    Falls back to pyttsx3 if win32com not available.
     """
     text = str(text).strip()
     if not text:
         return
     print(f"[JARVIS]: {text}")
-    if _HAS_EDGE_TTS or _HAS_PYTTSX3:
-        _ensure_tts_worker()
-        _tts_q.put(text)
+    _ensure_tts_worker()
+    _tts_q.put(text)
 
 
 def wait_for_speak():
@@ -588,44 +566,81 @@ def run_command(query):
         elif "stop music" in query or "stop media" in query:
             dc.media_stop()
             response = "Media stopped"
+        # ══════════════════════════════════════════════════════════
+        #  VOLUME CONTROLS
+        #  "song volume up/down"   → browser/YouTube player ka volume
+        #  "system volume up/down" → Windows system volume
+        #  sirf "volume up/down"   → system volume (default)
+        # ══════════════════════════════════════════════════════════
 
+        # ── Song/YouTube volume (browser player) ─────────────────
         elif any(k in query for k in (
-            "volume full", "full volume", "volume max", "max volume",
-            "volume poora", "poora volume", "volume 100", "sound full",
-            "full karo", "full kar do", "zyada se zyada", "ekdum full",
-            "volume puri tarah badhao", "volume bilkul full"
+            "song volume up", "song volume badhao", "song louder",
+            "youtube volume up", "video volume up", "music volume up",
+            "song ki awaaz badhao", "song upar", "song volume upar",
+            "gaane ki awaaz badhao", "gaane ka volume badhao"
         )):
-            dc.volume_max()
-            response = "Volume full kar diya Sir"
+            dc.song_volume_up()
+            response = "Song ka volume badha diya Sir"
             _spoken = True
 
         elif any(k in query for k in (
+            "song volume down", "song volume kam", "song quieter",
+            "youtube volume down", "video volume down", "music volume down",
+            "song ki awaaz kam karo", "song niche", "song volume niche",
+            "gaane ki awaaz kam karo", "gaane ka volume kam karo"
+        )):
+            dc.song_volume_down()
+            response = "Song ka volume kam kar diya Sir"
+            _spoken = True
+
+        # ── System volume full / zero ─────────────────────────────
+        elif any(k in query for k in (
+            "system volume full", "system volume max", "laptop volume full",
+            "computer volume full", "system ki awaaz full",
+            "volume full karo system", "volume 100",
+            "volume full", "full volume", "volume max", "max volume",
+            "full karo", "full kar do", "ekdum full",
+            "volume puri tarah badhao", "volume bilkul full", "zyada se zyada",
+            "volume poora", "poora volume", "sound full"
+        )):
+            dc.volume_max()
+            response = "System volume full kar diya Sir"
+            _spoken = True
+
+        elif any(k in query for k in (
+            "system volume zero", "system volume off", "laptop volume zero",
             "volume zero", "volume off", "sound zero",
             "volume bilkul kam", "ekdum band karo volume"
         )):
             dc.volume_min()
-            response = "Volume zero kar diya Sir"
+            response = "System volume zero kar diya Sir"
             _spoken = True
 
+        # ── System volume up / down ───────────────────────────────
         elif any(k in query for k in (
             "volume up", "increase volume", "louder", "volume badhao",
-            "volume upar", "aawaz badhao", "sound badhao", "thoda aur badhao",
-            "thoda volume badhao", "aawaz upar karo"
+            "volume upar", "aawaz badhao", "sound badhao",
+            "thoda volume badhao", "aawaz upar karo", "thoda aur badhao",
+            "system volume up", "system volume badhao"
         )):
             dc.volume_up()
-            response = "Volume badha diya Sir"
+            response = "System volume badha diya Sir"
             _spoken = True
 
         elif any(k in query for k in (
             "volume down", "decrease volume", "lower volume", "quieter",
             "volume niche", "volume kam karo", "aawaz kam karo",
-            "sound kam karo", "thoda kam karo", "thoda volume kam"
+            "sound kam karo", "thoda kam karo", "thoda volume kam",
+            "system volume down", "system volume kam karo"
         )):
             dc.volume_down()
-            response = "Volume kam kar diya Sir"
+            response = "System volume kam kar diya Sir"
             _spoken = True
 
-        elif any(k in query for k in ("mute", "unmute", "mute volume", "chup karo", "awaaz band karo")):
+        elif any(k in query for k in (
+            "mute", "unmute", "mute volume", "chup karo", "awaaz band karo"
+        )):
             dc.mute_volume()
             response = "Mute kar diya Sir"
             _spoken = True
@@ -1462,9 +1477,11 @@ def run_command(query):
         elif query.startswith("play ") and len(query) > 5:
             song = query[5:].strip()
             # ignore agar ye media control keywords hain
-            if not any(k == song for k in ("music", "pause", "next", "prev", "stop", "resume")):
+            media_only = ("music", "pause", "next", "prev", "stop", "resume",
+                          "song volume", "volume up", "volume down")
+            if not any(k in song for k in media_only):
                 from engine.features import PlayYoutube
-                speak(f"YouTube pe {song} chala raha hoon")
+                speak(f"YouTube pe {song} chala raha hoon Sir")
                 PlayYoutube(f"play {song} on youtube")
                 response = f"Playing {song} on YouTube"
                 _spoken = True

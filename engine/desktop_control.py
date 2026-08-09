@@ -39,7 +39,7 @@ def minimize_window():
         speak("PyAutoGUI not available")
         return
     pyautogui.hotkey("win", "down")
-    speak("Window minimized")
+    speak("Window minimize kar diya Sir")
 
 
 def maximize_window():
@@ -48,7 +48,7 @@ def maximize_window():
         speak("PyAutoGUI not available")
         return
     pyautogui.hotkey("win", "up")
-    speak("Window maximized")
+    speak("Window maximize kar diya Sir")
 
 
 def close_window():
@@ -57,7 +57,7 @@ def close_window():
         speak("PyAutoGUI not available")
         return
     pyautogui.hotkey("alt", "f4")
-    speak("Window closed")
+    speak("Window band kar diya Sir")
 
 
 def switch_window():
@@ -66,7 +66,7 @@ def switch_window():
         speak("PyAutoGUI not available")
         return
     pyautogui.hotkey("alt", "tab")
-    speak("Switching window")
+    speak("Window switch kar raha hoon Sir")
 
 
 def show_desktop():
@@ -75,7 +75,7 @@ def show_desktop():
         speak("PyAutoGUI not available")
         return
     pyautogui.hotkey("win", "d")
-    speak("Showing desktop")
+    speak("Desktop show kar diya Sir")
 
 
 def snap_left():
@@ -83,7 +83,7 @@ def snap_left():
     if not _HAS_GUI:
         return
     pyautogui.hotkey("win", "left")
-    speak("Snapped to left")
+    speak("Left side snap kar diya Sir")
 
 
 def snap_right():
@@ -91,7 +91,7 @@ def snap_right():
     if not _HAS_GUI:
         return
     pyautogui.hotkey("win", "right")
-    speak("Snapped to right")
+    speak("Right side snap kar diya Sir")
 
 
 def open_task_view():
@@ -99,7 +99,7 @@ def open_task_view():
     if not _HAS_GUI:
         return
     pyautogui.hotkey("win", "tab")
-    speak("Opening task view")
+    speak("Task view khol diya Sir")
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -109,82 +109,82 @@ def open_task_view():
 def copy():
     if not _HAS_GUI: return
     pyautogui.hotkey("ctrl", "c")
-    speak("Copied")
+    speak("Copy kar diya Sir")
 
 def paste():
     if not _HAS_GUI: return
     pyautogui.hotkey("ctrl", "v")
-    speak("Pasted")
+    speak("Paste kar diya Sir")
 
 def cut():
     if not _HAS_GUI: return
     pyautogui.hotkey("ctrl", "x")
-    speak("Cut")
+    speak("Cut kar diya Sir")
 
 def undo():
     if not _HAS_GUI: return
     pyautogui.hotkey("ctrl", "z")
-    speak("Undo done")
+    speak("Undo kar diya Sir")
 
 def redo():
     if not _HAS_GUI: return
     pyautogui.hotkey("ctrl", "y")
-    speak("Redo done")
+    speak("Redo kar diya Sir")
 
 def select_all():
     if not _HAS_GUI: return
     pyautogui.hotkey("ctrl", "a")
-    speak("Selected all")
+    speak("Sab select kar diya Sir")
 
 def save_file():
     if not _HAS_GUI: return
     pyautogui.hotkey("ctrl", "s")
-    speak("Saved")
+    speak("Save kar diya Sir")
 
 def new_tab():
     if not _HAS_GUI: return
     pyautogui.hotkey("ctrl", "t")
-    speak("New tab opened")
+    speak("Naya tab khol diya Sir")
 
 def close_tab():
     if not _HAS_GUI: return
     pyautogui.hotkey("ctrl", "w")
-    speak("Tab closed")
+    speak("Tab band kar diya Sir")
 
 def refresh_page():
     if not _HAS_GUI: return
     pyautogui.press("f5")
-    speak("Refreshed")
+    speak("Refresh kar diya Sir")
 
 def go_back():
     if not _HAS_GUI: return
     pyautogui.hotkey("alt", "left")
-    speak("Going back")
+    speak("Peeche ja raha hoon Sir")
 
 def go_forward():
     if not _HAS_GUI: return
     pyautogui.hotkey("alt", "right")
-    speak("Going forward")
+    speak("Aage ja raha hoon Sir")
 
 def zoom_in():
     if not _HAS_GUI: return
     pyautogui.hotkey("ctrl", "+")
-    speak("Zoomed in")
+    speak("Zoom in kar diya Sir")
 
 def zoom_out():
     if not _HAS_GUI: return
     pyautogui.hotkey("ctrl", "-")
-    speak("Zoomed out")
+    speak("Zoom out kar diya Sir")
 
 def find_on_page():
     if not _HAS_GUI: return
     pyautogui.hotkey("ctrl", "f")
-    speak("Find opened")
+    speak("Find khol diya Sir")
 
 def open_new_window():
     if not _HAS_GUI: return
     pyautogui.hotkey("ctrl", "n")
-    speak("New window opened")
+    speak("Naya window khol diya Sir")
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -194,49 +194,103 @@ def open_new_window():
 def media_play_pause():
     if not _HAS_GUI: return
     pyautogui.press("playpause")
-    speak("Play pause toggled")
+    speak("Play pause kar diya Sir")
 
 def media_next():
     if not _HAS_GUI: return
     pyautogui.press("nexttrack")
-    speak("Next track")
+    speak("Next track Sir")
 
 def media_previous():
     if not _HAS_GUI: return
     pyautogui.press("prevtrack")
-    speak("Previous track")
+    speak("Previous track Sir")
 
 def media_stop():
     if not _HAS_GUI: return
     pyautogui.press("stop")
-    speak("Media stopped")
+    speak("Media stop kar diya Sir")
 
 def volume_up(steps=5):
+    """System volume badhao."""
     if not _HAS_GUI: return
     pyautogui.press("volumeup", presses=steps)
-    speak("Volume badha diya Sir")
+    speak("System volume badha diya Sir")
 
 def volume_down(steps=5):
+    """System volume kam karo."""
     if not _HAS_GUI: return
     pyautogui.press("volumedown", presses=steps)
-    speak("Volume kam kar diya Sir")
+    speak("System volume kam kar diya Sir")
 
 def volume_max():
-    """Volume poora full karo — 50 steps press karo guarantee se max tak."""
+    """System volume poora full karo."""
     if not _HAS_GUI: return
     pyautogui.press("volumeup", presses=50)
-    speak("Volume full kar diya Sir")
+    speak("System volume full kar diya Sir")
 
 def volume_min():
-    """Volume bilkul zero karo."""
+    """System volume zero karo."""
     if not _HAS_GUI: return
     pyautogui.press("volumedown", presses=50)
-    speak("Volume zero kar diya Sir")
+    speak("System volume zero kar diya Sir")
 
 def mute_volume():
     if not _HAS_GUI: return
     pyautogui.press("volumemute")
     speak("Mute kar diya Sir")
+
+def song_volume_up():
+    """
+    Browser mein chal rahe song/video ka volume badhao.
+    JavaScript injection se YouTube player ka volume badhata hai.
+    """
+    if not _HAS_GUI: return
+    try:
+        import pyperclip
+        # JS — YouTube player ka volume 10% badhao (max 100)
+        js = (
+            "var v=document.querySelector('video');"
+            "if(v){v.volume=Math.min(1,v.volume+0.1);"
+            "document.title='VOL:'+Math.round(v.volume*100);}"
+        )
+        pyperclip.copy(js)
+        # Browser address bar pe focus, JS execute
+        pyautogui.hotkey("ctrl", "l")
+        import time; time.sleep(0.15)
+        pyautogui.hotkey("ctrl", "a")
+        pyautogui.typewrite("javascript:" + js, interval=0.01)
+        pyautogui.press("enter")
+        import time; time.sleep(0.3)
+        pyautogui.press("escape")
+    except Exception:
+        # Fallback — system volume up
+        pyautogui.press("volumeup", presses=3)
+    speak("Song ka volume badha diya Sir")
+
+def song_volume_down():
+    """
+    Browser mein chal rahe song/video ka volume kam karo.
+    """
+    if not _HAS_GUI: return
+    try:
+        import pyperclip
+        js = (
+            "var v=document.querySelector('video');"
+            "if(v){v.volume=Math.max(0,v.volume-0.1);"
+            "document.title='VOL:'+Math.round(v.volume*100);}"
+        )
+        pyperclip.copy(js)
+        pyautogui.hotkey("ctrl", "l")
+        import time; time.sleep(0.15)
+        pyautogui.hotkey("ctrl", "a")
+        pyautogui.typewrite("javascript:" + js, interval=0.01)
+        pyautogui.press("enter")
+        import time; time.sleep(0.3)
+        pyautogui.press("escape")
+    except Exception:
+        pyautogui.press("volumedown", presses=3)
+    speak("Song ka volume kam kar diya Sir")
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -284,22 +338,22 @@ def type_text(text):
 def press_enter():
     if not _HAS_GUI: return
     pyautogui.press("enter")
-    speak("Enter pressed")
+    speak("Enter kar diya Sir")
 
 def press_escape():
     if not _HAS_GUI: return
     pyautogui.press("escape")
-    speak("Escaped")
+    speak("Escape kar diya Sir")
 
 def press_delete():
     if not _HAS_GUI: return
     pyautogui.press("delete")
-    speak("Deleted")
+    speak("Delete kar diya Sir")
 
 def press_backspace():
     if not _HAS_GUI: return
     pyautogui.press("backspace")
-    speak("Backspace pressed")
+    speak("Backspace kar diya Sir")
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -309,12 +363,12 @@ def press_backspace():
 def scroll_down(clicks=5):
     if not _HAS_GUI: return
     pyautogui.scroll(-clicks)
-    speak("Scrolled down")
+    speak("Neeche scroll kar diya Sir")
 
 def scroll_up(clicks=5):
     if not _HAS_GUI: return
     pyautogui.scroll(clicks)
-    speak("Scrolled up")
+    speak("Upar scroll kar diya Sir")
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -324,22 +378,22 @@ def scroll_up(clicks=5):
 def left_click():
     if not _HAS_GUI: return
     pyautogui.click()
-    speak("Left clicked")
+    speak("Click kar diya Sir")
 
 def right_click():
     if not _HAS_GUI: return
     pyautogui.rightClick()
-    speak("Right clicked")
+    speak("Right click kar diya Sir")
 
 def double_click():
     if not _HAS_GUI: return
     pyautogui.doubleClick()
-    speak("Double clicked")
+    speak("Double click kar diya Sir")
 
 def middle_click():
     if not _HAS_GUI: return
     pyautogui.middleClick()
-    speak("Middle clicked")
+    speak("Middle click kar diya Sir")
 
 def move_mouse(x_offset=0, y_offset=0):
     if not _HAS_GUI: return
@@ -382,12 +436,12 @@ def scroll_right(clicks=5):
 def scroll_to_top():
     if not _HAS_GUI: return
     pyautogui.scroll(1000)
-    speak("Scrolled to top")
+    speak("Top pe scroll kar diya Sir")
 
 def scroll_to_bottom():
     if not _HAS_GUI: return
     pyautogui.scroll(-1000)
-    speak("Scrolled to bottom")
+    speak("Bottom pe scroll kar diya Sir")
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -397,88 +451,88 @@ def scroll_to_bottom():
 def text_bold():
     if not _HAS_GUI: return
     pyautogui.hotkey("ctrl", "b")
-    speak("Bold applied")
+    speak("Bold kar diya Sir")
 
 def text_italic():
     if not _HAS_GUI: return
     pyautogui.hotkey("ctrl", "i")
-    speak("Italic applied")
+    speak("Italic kar diya Sir")
 
 def text_underline():
     if not _HAS_GUI: return
     pyautogui.hotkey("ctrl", "u")
-    speak("Underline applied")
+    speak("Underline kar diya Sir")
 
 def text_strikethrough():
     if not _HAS_GUI: return
     pyautogui.hotkey("ctrl", "shift", "s")
-    speak("Strikethrough applied")
+    speak("Strikethrough kar diya Sir")
 
 def find_and_replace():
     if not _HAS_GUI: return
     pyautogui.hotkey("ctrl", "h")
-    speak("Find and replace opened")
+    speak("Find and replace khol diya Sir")
 
 def print_document():
     if not _HAS_GUI: return
     pyautogui.hotkey("ctrl", "p")
-    speak("Print dialog opened")
+    speak("Print dialog khol diya Sir")
 
 def open_task_manager_shortcut():
     if not _HAS_GUI: return
     pyautogui.hotkey("ctrl", "shift", "esc")
-    speak("Task manager opened")
+    speak("Task manager khol diya Sir")
 
 def fullscreen_toggle():
     if not _HAS_GUI: return
     pyautogui.press("f11")
-    speak("Fullscreen toggled")
+    speak("Fullscreen kar diya Sir")
 
 def exit_app():
     if not _HAS_GUI: return
     pyautogui.hotkey("alt", "f4")
-    speak("Closing app")
+    speak("App band kar raha hoon Sir")
 
 def new_document():
     if not _HAS_GUI: return
     pyautogui.hotkey("ctrl", "n")
-    speak("New document")
+    speak("Naya document khol diya Sir")
 
 def open_document():
     if not _HAS_GUI: return
     pyautogui.hotkey("ctrl", "o")
-    speak("Open file dialog")
+    speak("File open dialog khol diya Sir")
 
 def rename_item():
     if not _HAS_GUI: return
     pyautogui.press("f2")
-    speak("Rename mode")
+    speak("Rename mode Sir")
 
 def refresh_everything():
     if not _HAS_GUI: return
     pyautogui.press("f5")
     pyautogui.hotkey("ctrl", "r")
-    speak("Refreshed")
+    speak("Refresh kar diya Sir")
 
 def restore_tab():
     if not _HAS_GUI: return
     pyautogui.hotkey("ctrl", "shift", "t")
-    speak("Tab restored")
+    speak("Tab restore kar diya Sir")
 
 def close_all_tabs():
     if not _HAS_GUI: return
     pyautogui.hotkey("ctrl", "shift", "w")
-    speak("All tabs closed")
+    speak("Sab tabs band kar diye Sir")
 
 def switch_to_next_tab():
     if not _HAS_GUI: return
     pyautogui.hotkey("ctrl", "tab")
-    speak("Next tab")
+    speak("Next tab Sir")
 
 def switch_to_previous_tab():
     if not _HAS_GUI: return
     pyautogui.hotkey("ctrl", "shift", "tab")
-    speak("Previous tab")
+    speak("Previous tab Sir")
 
 def jump_to_tab(n):
     if not _HAS_GUI: return
@@ -493,27 +547,27 @@ def go_to_address_bar():
 def open_history():
     if not _HAS_GUI: return
     pyautogui.hotkey("ctrl", "h")
-    speak("History opened")
+    speak("History khol di Sir")
 
 def open_bookmarks():
     if not _HAS_GUI: return
     pyautogui.hotkey("ctrl", "shift", "o")
-    speak("Bookmarks opened")
+    speak("Bookmarks khol diye Sir")
 
 def open_downloads():
     if not _HAS_GUI: return
     pyautogui.hotkey("ctrl", "j")
-    speak("Downloads opened")
+    speak("Downloads khol diya Sir")
 
 def open_developer_tools():
     if not _HAS_GUI: return
     pyautogui.press("f12")
-    speak("Developer tools opened")
+    speak("Developer tools khol diye Sir")
 
 def open_incognito():
     if not _HAS_GUI: return
     pyautogui.hotkey("ctrl", "shift", "n")
-    speak("Incognito window opened")
+    speak("Incognito window khol diya Sir")
 
 def open_private_window():
     if not _HAS_GUI: return
