@@ -1,296 +1,302 @@
 # J.A.R.V.I.S — Personal Desktop Voice Assistant
 
-> **Just A Rather Very Intelligent System**  
-> Apna laptop sirf awaaz se control karo — bina haath lagaye!
+> **Just A Rather Very Intelligent System**
+> Control your entire laptop using only your voice — no touch required!
 
 ---
 
-## Jarvis kya hai?
+## What Is Jarvis?
 
-Jarvis ek Python-based personal voice assistant hai jo aapko **sirf voice se apna pura laptop control** karne deta hai. Bas **"Wakeup Jarvish"** bolo — aur phir **"Jarvish"** bol ke koi bhi command do.
+Jarvis is a Python-based personal voice assistant that lets you **fully control your laptop using voice commands**. Just say **"Wakeup Jarvish"** to activate it, then say **"Jarvish"** followed by any command.
 
-**Kya kya kar sakta hai:**
-- Apps aur websites open karna (WhatsApp, Chrome, YouTube, Instagram, etc.)
-- Koi bhi song seedha YouTube pe play karna
-- System aur song volume alag alag control karna
-- Windows minimize, maximize, snap, close karna
-- Screenshots lena
-- Text type karna
-- Media control (play/pause/next/previous)
-- Google, YouTube, Wikipedia search karna
-- WhatsApp messages aur calls karna
-- Face authentication se unlock karna
-- **Smart Learning** — jo bhi website ya song ek baar bologe, Jarvis yaad rakh lega
+**What it can do:**
+- Open apps and websites (WhatsApp, Chrome, YouTube, Instagram, and 200+ more)
+- Play any song directly on YouTube
+- Control song volume and system volume independently
+- Minimize, maximize, snap, and close windows
+- Take screenshots
+- Type text at the cursor
+- Control media playback (play / pause / next / previous)
+- Search on Google, YouTube, Wikipedia, Amazon, and more
+- Send WhatsApp messages and make calls
+- Unlock with face authentication
+- **Smart Learning** — Jarvis remembers every website and song you open, so next time it opens instantly
 
 ---
 
-## Quick Start — Sirf 3 Steps
+## Quick Start — Only 3 Steps
 
-### Step 1 — Python Install karo
-Python 3.10 ya usse upar chahiye.  
+### Step 1 — Install Python
+Python 3.10 or higher is required.
 Download: https://www.python.org/downloads/
 
-### Step 2 — Dependencies Install karo
+### Step 2 — Install Dependencies
 ```bash
 pip install -r requirements.txt
+pip install pywin32
+pip install youtube-search
 ```
 
-### Step 3 — Chalu karo
+### Step 3 — Run Jarvis
 ```bash
 python run.py
 ```
-Ya `run.bat` double-click karo.
+Or double-click `run.bat`.
 
-Browser mein Jarvis khulega: **http://localhost:8000**
+Jarvis will open in your browser at: **http://localhost:8000**
 
 ---
 
-## Kaise Use Karna Hai
+## How to Use
 
-### Step 1 — Wake Word Bolo
-Kuch bhi chhune ki zaroorat nahi:
+### Step 1 — Say the Wake Word
+No need to touch your laptop at all:
 
-| Bologe | Result |
-|--------|--------|
-| **"Wakeup Jarvish"** | Jarvis deep sleep se online hoga |
-| **"Hey Jarvis"** | Jarvis active hoga |
-| **"Ok Jarvish"** | Jarvis active hoga |
+| Say this | Result |
+|----------|--------|
+| **"Wakeup Jarvish"** | Jarvis wakes from deep sleep and comes online |
+| **"Hey Jarvis"** | Jarvis activates |
+| **"Ok Jarvish"** | Jarvis activates |
 
-Activate hone par:
-1. Beep sound bajega
-2. Browser window apne aap khulegi
-3. Jarvis bolega — *"Jarvis online. Jarvish bol ke command do."*
+When activated:
+1. A beep sound plays
+2. The browser window opens automatically
+3. Jarvis says — *"Jarvis online. Say Jarvish to give a command."*
 
-### Step 2 — Command do
-**"Jarvish"** bolo — Jarvis bolega **"Haan Sir, boliye."**  
-Ab apna command bolo — Jarvis execute karega aur bolega kya kiya.
+### Step 2 — Give a Command
+Say **"Jarvish"** — Jarvis will reply **"Yes Sir, go ahead."**
+Then say your command — Jarvis will execute it and tell you what it did.
 
-**Ya seedha bolo:** `"Jarvish open chrome"` — ek hi baar mein.
+**Or say it all at once:** `"Jarvish open Chrome"` — no need for two steps.
 
 ### Step 3 — Continuous Commands
-Ek command ke baad Jarvis **wapas sun ne ke liye ready** rehta hai.  
-Dobara "Jarvish" bolne ki zaroorat nahi.
+After each command, Jarvis **stays ready to listen** for the next one.
+No need to say "Jarvish" again after every command.
 
-### Step 4 — Sleep karo (optional)
-| Bologe | Result |
-|--------|--------|
-| **"Jarvish shutdown"** | Jarvis so jaayega |
-| **"Jarvish bye"** | Jarvis so jaayega |
+### Step 4 — Put Jarvis to Sleep (optional)
+| Say this | Result |
+|----------|--------|
+| **"Jarvish shutdown"** | Jarvis goes to sleep |
+| **"Jarvish bye"** | Jarvis goes to sleep |
 
-> **Auto-Sleep:** 2 minute tak koi command nahi di to Jarvis apne aap so jaata hai.
+> **Auto-Sleep:** If no command is given for 2 minutes, Jarvis automatically goes to sleep.
 
 ---
 
-## Poori Command List
+## Full Command Reference
 
-### Apps Open karo
+### Open Apps
 ```
-open whatsapp          → WhatsApp Desktop khulegaa
-open chrome            → Google Chrome khulega
-open notepad           → Notepad khulega
-open calculator        → Calculator khulega
-open spotify           → Spotify khulega
-open telegram          → Telegram khulega
-open vscode            → VS Code khulega
-open youtube           → YouTube browser mein khulega
-open instagram         → Instagram browser mein khulega
-open gmail             → Gmail browser mein khulega
-open chatgpt           → ChatGPT browser mein khulega
-open netflix           → Netflix browser mein khulega
-open whatsapp web      → WhatsApp Web khulega
+open whatsapp          → Opens WhatsApp Desktop
+open chrome            → Opens Google Chrome
+open notepad           → Opens Notepad
+open calculator        → Opens Calculator
+open spotify           → Opens Spotify
+open telegram          → Opens Telegram
+open vscode            → Opens VS Code
+open youtube           → Opens YouTube in browser
+open instagram         → Opens Instagram in browser
+open gmail             → Opens Gmail in browser
+open chatgpt           → Opens ChatGPT in browser
+open netflix           → Opens Netflix in browser
+open whatsapp web      → Opens WhatsApp Web
 ```
-> 200+ apps aur websites supported hain.
+> 200+ apps and websites are supported out of the box.
 
-### YouTube pe Song Play karo
+### Play a Song on YouTube
 ```
-play believer                        → YouTube pe believer play karega
-play arijit singh                    → Arijit Singh ka song play karega
-open youtube play shape of you       → YouTube pe shape of you play karega
-open youtube and play kesariya       → Seedha kesariya play karega
-play believer on youtube             → Believer play karega
-kesariya bajao                       → YouTube pe kesariya play
-tere bina chala do                   → Tere Bina play karega
+play believer                        → Plays Believer on YouTube
+play arijit singh                    → Plays an Arijit Singh song
+open youtube play shape of you       → Plays Shape of You directly
+open youtube and play kesariya       → Plays Kesariya directly
+play believer on youtube             → Plays Believer
 ```
-> Agar sirf "open youtube play the song" bola to Jarvis poochhe ga —  
-> **"Kaunsa song chahiye Sir? Naam batao."**
+> If you say just **"open youtube play the song"** without a name,
+> Jarvis will ask — *"Which song Sir? Please tell me the name."*
 
-### Song Volume vs System Volume
-```
-song volume up          → YouTube/browser pe jo chal raha hai uska volume badhao
-song volume down        → YouTube player ka volume kam karo
-gaane ki awaaz badhao   → Song ka volume up
-gaane ka volume kam karo → Song ka volume down
+### Volume Control
 
-volume full karo        → Laptop/PC ki system volume 100% kar do
-system volume full      → System volume max
-volume up               → System volume thoda badhao
-volume down             → System volume thoda kam karo
-volume zero             → System volume zero
-mute                    → Mute/Unmute
+**Song / YouTube volume (browser player):**
+```
+song volume up             → Increase the YouTube player volume
+song volume down           → Decrease the YouTube player volume
+increase music volume      → Song volume up
+decrease music volume      → Song volume down
 ```
 
-### Folders Open karo
+**System / laptop volume:**
 ```
-open downloads    → Downloads folder
-open documents    → Documents folder
-open desktop      → Desktop folder
-open pictures     → Pictures folder
-open music        → Music folder
-open videos       → Videos folder
-open c drive      → C:\ drive
-open d drive      → D:\ drive
-this pc           → File Explorer
-recycle bin       → Recycle Bin
-empty recycle bin → Recycle Bin empty karo
+volume full                → Set system volume to 100%
+system volume full         → System volume max
+volume up                  → Increase system volume a bit
+volume down                → Decrease system volume a bit
+volume zero                → Set system volume to zero
+mute                       → Mute / Unmute
+```
+
+### Open Folders
+```
+open downloads        → Downloads folder
+open documents        → Documents folder
+open desktop          → Desktop folder
+open pictures         → Pictures folder
+open music            → Music folder
+open videos           → Videos folder
+open c drive          → C:\ drive
+open d drive          → D:\ drive
+this pc               → File Explorer (This PC)
+recycle bin           → Open Recycle Bin
+empty recycle bin     → Empty the Recycle Bin
 ```
 
 ### Window Control
 ```
-minimize window       → Window minimize karo
-maximize window       → Window maximize karo
-close window          → Window band karo
-switch window         → Alt+Tab (windows switch)
-show desktop          → Sab windows minimize karo
-snap left             → Window ko left side snap karo
-snap right            → Window ko right side snap karo
-full screen           → F11 fullscreen
-task view             → Sabhi virtual desktops dikhao
-split screen          → Windows arrange karo
+minimize window       → Minimize the active window
+maximize window       → Maximize the active window
+close window          → Close the active window
+switch window         → Alt+Tab (switch between windows)
+show desktop          → Minimize all windows
+snap left             → Snap window to the left half
+snap right            → Snap window to the right half
+full screen           → Toggle fullscreen (F11)
+task view             → Show all virtual desktops
+split screen          → Tile windows side by side
 ```
 
 ### Keyboard Shortcuts
 ```
-copy              → Ctrl+C
-paste             → Ctrl+V
-cut               → Ctrl+X
-undo              → Ctrl+Z
-redo              → Ctrl+Y
-select all        → Ctrl+A
-save file         → Ctrl+S
-new tab           → Ctrl+T
-close tab         → Ctrl+W
-refresh           → F5
-go back           → Alt+Left
-go forward        → Alt+Right
-zoom in           → Ctrl++
-zoom out          → Ctrl+-
-find on page      → Ctrl+F
-new window        → Ctrl+N
-press enter       → Enter
-press escape      → Escape
+copy                  → Ctrl+C
+paste                 → Ctrl+V
+cut                   → Ctrl+X
+undo                  → Ctrl+Z
+redo                  → Ctrl+Y
+select all            → Ctrl+A
+save file             → Ctrl+S
+new tab               → Ctrl+T
+close tab             → Ctrl+W
+refresh               → F5
+go back               → Alt+Left
+go forward            → Alt+Right
+zoom in               → Ctrl++
+zoom out              → Ctrl+-
+find on page          → Ctrl+F
+new window            → Ctrl+N
+press enter           → Enter key
+press escape          → Escape key
 ```
 
 ### Media Control
 ```
-play music        → Play/Pause toggle
-pause music       → Play/Pause toggle
-next song         → Agla song
-previous song     → Pichla song
-stop music        → Media stop
+play music            → Play / Pause toggle
+pause music           → Play / Pause toggle
+next song             → Skip to next track
+previous song         → Go to previous track
+stop music            → Stop media playback
 ```
 
 ### Brightness
 ```
-brightness up           → Screen bright karo
-brightness down         → Screen dim karo
-set brightness to 70    → Brightness 70% set karo
+brightness up              → Increase screen brightness
+brightness down            → Decrease screen brightness
+set brightness to 70       → Set brightness to exactly 70%
 ```
 
 ### Screenshot
 ```
-take screenshot    → Desktop pe screenshot save karo
-screenshot         → Same
-snipping tool      → Snipping tool kholo (partial screenshot)
+take screenshot       → Save a full screenshot to the Desktop
+screenshot            → Same as above
+snipping tool         → Open Snipping Tool for a partial capture
 ```
 
-### Text Type karo
+### Type Text
 ```
-type hello world       → "hello world" cursor pe type karega
-write my name is John  → "my name is John" type karega
+type hello world           → Types "hello world" at the cursor
+write my name is John      → Types "my name is John" at the cursor
 ```
 
 ### Scroll
 ```
-scroll down       → Page neeche scroll karo
-scroll up         → Page upar scroll karo
-scroll to top     → Page ke shuru mein jao
-scroll to bottom  → Page ke end mein jao
+scroll down           → Scroll the page down
+scroll up             → Scroll the page up
+scroll to top         → Jump to the top of the page
+scroll to bottom      → Jump to the bottom of the page
 ```
 
 ### Search
 ```
-search google for python tutorials     → Google pe search
-search youtube for bollywood songs     → YouTube pe search
-search wikipedia for machine learning  → Wikipedia pe search
-search amazon for headphones           → Amazon pe search
+search google for python tutorials      → Search on Google
+search youtube for bollywood songs      → Search on YouTube
+search wikipedia for machine learning   → Search on Wikipedia
+search amazon for headphones            → Search on Amazon
+search github for flask                 → Search on GitHub
 ```
 
-### Browser Shortcuts
+### Browser
 ```
-new tab              → Naya tab kholo
-close tab            → Tab band karo
-incognito            → Incognito window kholo
-developer tools      → Dev tools kholo
-bookmarks            → Bookmarks kholo
-history              → History kholo
-go back              → Peeche jao
-go forward           → Aage jao
+new tab               → Open a new tab
+close tab             → Close current tab
+incognito             → Open an Incognito window
+developer tools       → Open DevTools (F12)
+bookmarks             → Open Bookmarks
+history               → Open browsing history
+go back               → Navigate back
+go forward            → Navigate forward
 ```
 
 ### WhatsApp / Contacts
 ```
-send message to Rahul    → WhatsApp message bhejo
-phone call to Mom        → Phone call karo
-video call to Priya      → Video call karo
+send message to Rahul      → Send a WhatsApp message
+phone call to Mom          → Make a phone call
+video call to Priya        → Start a video call
 ```
-> Contacts add karne ke liye `contacts.csv` mein naam aur number daalo.
+> To use contacts, add names and numbers in `contacts.csv`.
 
 ### System
 ```
-lock screen       → Laptop lock karo
-sleep             → Sleep mode
-task manager      → Task Manager kholo
-open settings     → Windows Settings
-open run          → Win+R dialog
-virtual keyboard  → On-screen keyboard
-clipboard         → Clipboard history (Win+V)
-restart           → System restart (10 sec mein)
-shutdown          → System shutdown (10 sec mein)
-battery status    → Battery percentage batao
-ip address        → IP address batao
-show wifi         → Saved WiFi networks list
+lock screen           → Lock the laptop
+sleep                 → Put the laptop to sleep
+task manager          → Open Task Manager
+open settings         → Open Windows Settings
+open run              → Open the Win+R dialog
+virtual keyboard      → Open the on-screen keyboard
+clipboard             → Open clipboard history (Win+V)
+restart               → Restart the system (10 second countdown)
+shutdown              → Shut down the system (10 second countdown)
+battery status        → Report current battery percentage
+ip address            → Report local and public IP address
+show wifi             → List saved Wi-Fi networks
 ```
 
 ### Time / Date
 ```
-time batao         → Abhi ka time batao
-date batao         → Aaj ki date batao
-aaj kaun sa din    → Aaj ka din batao
+what time is it       → Tells the current time
+what is today's date  → Tells today's date
+what day is it        → Tells the day of the week
 ```
 
 ### Smart Learning (Auto Memory)
-Jarvis jo websites aur songs aap ek baar kholo, yaad rakh leta hai:
+Jarvis remembers every website and song you open. Next time, just say the name:
 ```
-# Pehli baar:
-open instagram        → Instagram khulega  [LEARN: 'instagram' store hua]
+# First time:
+open instagram          → Instagram opens  [LEARN: 'instagram' stored]
 
-# Doosri baar:
-instagram             → Seedha open hoga (bina "open" ke bhi)
+# Next time:
+instagram               → Opens directly, no "open" needed
 
-# Songs bhi:
-play believer         → YouTube pe play  [LEARN: 'believer' store hua]
-believer              → Seedha play (agle baar)
+# Songs too:
+play believer           → Plays on YouTube  [LEARN: 'believer' stored]
+believer                → Plays directly next time
 ```
-Activity Log mein `Remembered:` dikhega jab memory se execute ho.
+The Activity Log shows `Remembered:` whenever a command runs from memory.
 
 ### Chat / AI
-Jo command list mein nahi hai, woh AI chatbot handle karta hai:
+Anything not in the command list is handled by the AI chatbot:
 ```
 who are you
 tell me a joke
 how are you
 thank you
-kya kar sakte ho
+what can you do
 ```
 
 ---
@@ -301,18 +307,18 @@ kya kar sakte ho
 Jarvis/
 │
 ├── main.py                  ← Flask server + API endpoints + Event log
-├── run.py                   ← Entry point (python run.py)
+├── run.py                   ← Entry point  (python run.py)
 ├── run.bat                  ← Windows double-click launcher
 ├── requirements.txt         ← Python dependencies
-├── contacts.csv             ← Apne contacts yahan add karo
+├── contacts.csv             ← Add your contacts here
 ├── Database.db              ← SQLite DB (apps, websites, contacts, learned commands)
 │
 ├── engine/
-│   ├── command.py           ← Voice command router + TTS (win32com SAPI5) + Smart Learning
-│   ├── features.py          ← Apps/websites open karo, YouTube play, WhatsApp, ChatBot
+│   ├── command.py           ← Command router + TTS (win32com SAPI5) + Smart Learning
+│   ├── features.py          ← Open apps/websites, YouTube play, WhatsApp, ChatBot
 │   ├── desktop_control.py   ← Window, keyboard, media, volume, brightness control
 │   ├── hotword.py           ← Always-on wake word listener ("Wakeup Jarvish")
-│   ├── helper.py            ← Utility functions (YouTube term extract, etc.)
+│   ├── helper.py            ← Utility functions (YouTube term extraction, etc.)
 │   ├── config.py            ← Configuration (assistant name)
 │   ├── init_db.py           ← Database setup (sys_command, web_command, learned_commands)
 │   ├── system_info.py       ← CPU, RAM, Disk, Battery stats
@@ -320,11 +326,11 @@ Jarvis/
 │   ├── authenticator.py     ← Face authentication
 │   │
 │   └── auth/
-│       ├── sample.py        ← Face samples capture karo
-│       ├── trainer.py       ← Face model train karo
+│       ├── sample.py        ← Capture face training samples
+│       ├── trainer.py       ← Train the face recognition model
 │       └── recoganize.py    ← Face recognition logic
 │
-└── www/                     ← Frontend (HTML/CSS/JS)
+└── www/                     ← Frontend (HTML / CSS / JS)
     ├── index.html           ← Main Jarvis UI
     ├── main.js              ← Command handling + Activity Log polling
     ├── controller.js        ← Boot sequence, mic button, chat
@@ -336,28 +342,28 @@ Jarvis/
 
 ## Configuration
 
-### Contacts Add karo
-`contacts.csv` mein naam aur number daalo:
+### Add Contacts
+Edit `contacts.csv`:
 ```csv
 name,mobile_no,email
 Rahul,9876543210,rahul@gmail.com
 Mom,8765432109,
 ```
 
-### Naya App ya Website Add karo
-`Database.db` mein ya `engine/init_db.py` mein:
+### Add a Custom App or Website
+In `Database.db` or directly in `engine/init_db.py`:
 ```python
-# Web command add karo
-("meri site", "https://www.merisite.com"),
+# Add a web command
+("my website", "https://www.mywebsite.com"),
 
-# Desktop app add karo (sys_command table mein)
-# name: "my app", path: "C:\\Path\\To\\App.exe"
+# Add a desktop app (sys_command table)
+# name: "my app",  path: "C:\\Path\\To\\App.exe"
 ```
 
-### Assistant ka Naam Badlo
-`engine/config.py` mein:
+### Change the Assistant Name
+In `engine/config.py`:
 ```python
-ASSISTANT_NAME = "jarvis"   # yahan badlo
+ASSISTANT_NAME = "jarvis"   # change this
 ```
 
 ---
@@ -368,84 +374,82 @@ ASSISTANT_NAME = "jarvis"   # yahan badlo
 |---------|---------|
 | `flask` | Web server (backend) |
 | `flask-cors` | API CORS support |
-| `win32com` (pywin32) | TTS — Windows SAPI5 voice (primary) |
+| `pywin32` | TTS via Windows SAPI5 (primary voice engine) |
 | `pyttsx3` | TTS fallback |
-| `SpeechRecognition` | Mic se voice sun na |
+| `SpeechRecognition` | Microphone voice recognition |
 | `PyAudio` | Microphone input |
 | `pyautogui` | Desktop automation |
-| `psutil` | CPU/RAM/Battery stats |
+| `psutil` | CPU / RAM / Battery stats |
 | `opencv-contrib-python` | Face authentication |
 | `Pillow` | Image processing |
 | `pygame` | Sound effects |
-| `youtube-search` | YouTube pe song search aur play |
+| `youtube-search` | YouTube video search and direct play |
 | `requests` | HTTP requests |
-| `edge-tts` | Neural voice TTS (optional) |
-
-### Requirements install karo:
-```bash
-pip install -r requirements.txt
-pip install pywin32
-pip install youtube-search
-```
+| `edge-tts` | Neural TTS voice (optional) |
 
 ---
 
 ## Troubleshooting
 
-### "Wakeup Jarvish" kaam nahi kar raha
-- Microphone check karo: Windows Settings → Sound → Input
-- Internet connection chahiye (Google Speech Recognition use hota hai)
-- Thoda saaf aur dheere bolo
+### "Wakeup Jarvish" is not being heard
+- Check your microphone: Windows Settings → Sound → Input
+- An internet connection is required (Google Speech Recognition)
+- Speak clearly and slightly slower than normal
 
-### YouTube pe song play nahi ho raha
+### Song is not playing on YouTube
 ```bash
 pip install youtube-search
 ```
-Phir server restart karo: `python run.py`
+Then restart the server: `python run.py`
 
-### Jarvis bolta nahi (koi awaaz nahi)
-- `pywin32` install karo: `pip install pywin32`
-- Windows SAPI5 voices installed honi chahiye
-- Speaker ya headphone connected hona chahiye
+### Jarvis has no voice (silent)
+```bash
+pip install pywin32
+```
+- Windows SAPI5 voices must be installed (they are by default on Windows 10/11)
+- Make sure speakers or headphones are connected
 
-### Import errors aa rahe hain
+### Import errors on startup
 ```bash
 pip install -r requirements.txt
 pip install pywin32 youtube-search
 ```
 
-### Activity Log mein kuch nahi dikh raha
-- Browser mein `http://localhost:8000` refresh karo
-- Server chal raha hona chahiye (`python run.py`)
+### Activity Log is not updating
+- Refresh the browser at `http://localhost:8000`
+- Make sure the server is running (`python run.py`)
 
 ---
 
 ## Face Authentication Setup
 
 ```bash
-# Step 1: Face samples capture karo
+# Step 1 — Capture face training samples
 python engine/auth/sample.py
 
-# Step 2: Model train karo
+# Step 2 — Train the face model
 python engine/auth/trainer.py
 
-# Step 3: Jarvis automatically face verify karega startup pe
+# Step 3 — Jarvis will automatically verify your face on startup
 ```
 
 ---
 
 ## Tech Stack
 
-- **Python 3.10+** — Core logic
-- **Flask** — REST API backend
-- **HTML / CSS / JavaScript** — Jarvis UI (frontend)
-- **SQLite** — Local database (apps, contacts, learned commands)
-- **Google Speech Recognition** — Voice to text
-- **win32com SAPI5** — Text to voice (Windows native)
-- **PyAutoGUI** — Desktop automation
-- **Win32 API** — Window management
-- **youtube-search** — YouTube video search aur direct play
+| Layer | Technology |
+|-------|-----------|
+| Core logic | Python 3.10+ |
+| Backend API | Flask |
+| Frontend UI | HTML / CSS / JavaScript |
+| Database | SQLite |
+| Voice input | Google Speech Recognition |
+| Voice output | win32com SAPI5 (Windows native) |
+| Desktop control | PyAutoGUI |
+| Window management | Win32 API |
+| YouTube playback | youtube-search library |
+| Face authentication | OpenCV |
 
 ---
 
-*Jarvis — aapka personal AI assistant*
+*Jarvis — your personal AI assistant*
