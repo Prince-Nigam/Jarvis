@@ -346,8 +346,7 @@ Jarvis/
 Edit `contacts.csv`:
 ```csv
 name,mobile_no,email
-Rahul,9876543210,rahul@gmail.com
-Mom,8765432109,
+Prince Nigam,7459883506,princenigam972@gmail.com
 ```
 
 ### Add a Custom App or Website
