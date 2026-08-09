@@ -1,14 +1,37 @@
-pyttsx3
-SpeechRecognition
-PyAudio
-playsound==1.2.2
-pyautogui
-pywhatkit
-opencv-contrib-python
-numpy
-Pillow
-psutil
+# J.A.R.V.I.S — Requirements
+# Install: pip install -r requirements.txt
+# Extra:   pip install pywin32 youtube-search
+
+# Web server
 flask
 flask-cors
+
+# Voice input
+SpeechRecognition
+PyAudio
+
+# Text-to-Speech (TTS)
+pyttsx3
 edge-tts==7.2.8
+pywin32          # win32com SAPI5 — primary TTS engine
+
+# Desktop automation
+pyautogui
+
+# System stats
+psutil
+
+# Face authentication
+opencv-contrib-python
+Pillow
+numpy
+
+# Sound
 pygame==2.6.1
+playsound==1.2.2
+
+# YouTube play
+youtube-search
+
+# HTTP
+requests
