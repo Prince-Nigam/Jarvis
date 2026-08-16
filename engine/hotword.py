@@ -574,7 +574,15 @@ def _wake_word_loop():
             continue
 
         # ── DEEP SLEEP: mic open, listen for "wakeup jarvish" ──────────
+        source = None
         try:
+            # Mic available hai check karo
+            mic_list = sr.Microphone.list_microphone_names()
+            if not mic_list:
+                print("[HOTWORD] ⚠️ No microphone found — retrying in 5s...")
+                time.sleep(5)
+                continue
+
             with sr.Microphone() as source:
                 recognizer.adjust_for_ambient_noise(source, duration=0.5)
                 print(f"[HOTWORD] 🎤 Listening (energy={recognizer.energy_threshold:.0f}) — bolo 'Wakeup Jarvish'...")
@@ -598,7 +606,6 @@ def _wake_word_loop():
                                 print("[HOTWORD] 🔔 DEEP SLEEP WAKE DETECTED!")
                                 _beep_wake()
                                 _push("🔔 Wake word detected!", "success")
-
                                 try:
                                     from engine.command import speak as _speak
                                     _speak("Jarvis online. 'Jarvish' bol ke command do.")
@@ -608,19 +615,16 @@ def _wake_word_loop():
                                     _open_jarvis_browser()
                                 except Exception as _be:
                                     print(f"[HOTWORD] Browser open (non-fatal): {_be}")
-
-                                # IDLE mein jao — user "jarvish" bol ke command dega
                                 with _state_lock:
                                     _state = STATE_IDLE
                                 _push("JARVIS ONLINE — 'Jarvish' bol ke command do", "success")
-
                                 t = threading.Thread(
                                     target=_idle_command_loop,
                                     daemon=True,
                                     name="jarvis-idle-command"
                                 )
                                 t.start()
-                                break
+                                break   # inner while loop se bahar
 
                         except sr.UnknownValueError:
                             _silence_counter += 1

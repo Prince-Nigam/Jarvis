@@ -256,3 +256,144 @@ body::after{content:'';pointer-events:none;position:fixed;inset:0;z-index:9998;
 ::-webkit-scrollbar{width:4px;height:4px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+
+/* ═══════════════════════════════════════════════════════════
+   PHONE VOICE PANEL
+   Desktop pe hidden — phone/tablet pe bottom center dikhta hai
+   ═══════════════════════════════════════════════════════════ */
+
+.phone-voice-panel {
+  display: none; /* desktop pe hidden */
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+/* Mobile/tablet pe show karo */
+@media (max-width: 768px) {
+  .phone-voice-panel {
+    display: flex;
+  }
+  /* Desktop mic button phone pe chhupa do — phone ka apna button hai */
+  #MicBtn {
+    display: none !important;
+  }
+}
+
+/* Phone wake button */
+.phone-wake-btn {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 212, 255, 0.35);
+  background: rgba(0, 20, 40, 0.85);
+  color: #fff;
+  font-size: 26px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+.phone-wake-btn:active {
+  transform: scale(0.93);
+}
+
+/* OFF state — default */
+.phone-wake-btn {
+  box-shadow: 0 0 10px rgba(0, 212, 255, 0.1);
+}
+
+/* LISTENING state — cyan glow */
+.phone-wake-btn.wake-on {
+  border-color: var(--cyan);
+  background: rgba(0, 212, 255, 0.12);
+  box-shadow: 0 0 18px rgba(0, 212, 255, 0.5);
+  animation: phone-listen-pulse 1.5s ease-in-out infinite;
+}
+
+/* ACTIVE / command mode — gold glow */
+.phone-wake-btn.wake-active {
+  border-color: #ffd700;
+  background: rgba(255, 215, 0, 0.12);
+  box-shadow: 0 0 18px rgba(255, 215, 0, 0.5);
+  animation: phone-active-pulse 0.8s ease-in-out infinite;
+}
+
+@keyframes phone-listen-pulse {
+  0%, 100% { box-shadow: 0 0 12px rgba(0, 212, 255, 0.4); }
+  50%       { box-shadow: 0 0 26px rgba(0, 212, 255, 0.8); }
+}
+
+@keyframes phone-active-pulse {
+  0%, 100% { box-shadow: 0 0 12px rgba(255, 215, 0, 0.4); }
+  50%       { box-shadow: 0 0 26px rgba(255, 215, 0, 0.9); transform: scale(1.06); }
+}
+
+/* Status label */
+.phone-wake-label {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: rgba(0, 212, 255, 0.55);
+  text-align: center;
+  letter-spacing: 0.04em;
+  max-width: 200px;
+}
+
+/* Phone — make cmd-bar full width and bigger */
+@media (max-width: 768px) {
+  .cmd-bar {
+    width: 100%;
+    padding: 6px 10px;
+  }
+  .cmd-input {
+    font-size: 15px;
+    height: 44px;
+  }
+  /* Bigger send button on phone */
+  #SendBtn {
+    width: 44px;
+    height: 44px;
+    font-size: 16px;
+  }
+  /* Hide left/right panels on phone — full center */
+  .jv-left, .jv-right {
+    display: none;
+  }
+  .jv-center {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  /* Smaller header on phone */
+  .jv-header {
+    padding: 6px 12px;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .hdr-logo {
+    font-size: 16px;
+  }
+  .hdr-time {
+    font-size: 18px;
+  }
+  .hdr-right {
+    gap: 6px;
+  }
+  .hdr-stat span {
+    font-size: 10px;
+  }
+  /* Wave section bigger on phone */
+  #siri-container {
+    width: 100% !important;
+  }
+  .wave-msg {
+    font-size: 16px;
+    padding: 0 16px;
+    text-align: center;
+  }
+}

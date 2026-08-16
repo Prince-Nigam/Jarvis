@@ -28,7 +28,6 @@ $(document).ready(function () {
         }
     }
 
-    // Connect real mic to SiriWave amplitude
     function startMicWave() {
         if (!siriWave) return;
         try {
@@ -41,13 +40,11 @@ $(document).ready(function () {
                 var src = audioCtx.createMediaStreamSource(stream);
                 src.connect(analyser);
                 var dataArr = new Uint8Array(analyser.frequencyBinCount);
-
                 function animateWave() {
                     analyser.getByteFrequencyData(dataArr);
                     var sum = 0;
                     for (var i = 0; i < dataArr.length; i++) sum += dataArr[i];
                     var avg = sum / dataArr.length;
-                    // Scale 0-255 average to 0-2 amplitude
                     var amp = Math.min(2, (avg / 255) * 4);
                     if (siriWave) siriWave.setAmplitude(amp);
                     waveAnimId = requestAnimationFrame(animateWave);
@@ -55,7 +52,6 @@ $(document).ready(function () {
                 animateWave();
             })
             .catch(function() {
-                // Mic permission denied — just show wave with default amplitude
                 if (siriWave) siriWave.setAmplitude(1);
             });
         } catch(e) {
@@ -101,6 +97,10 @@ $(document).ready(function () {
                     if (typeof window.initRightPanel === 'function') window.initRightPanel();
                     addLog('JARVIS ONLINE', 'success');
                     addLog('Say "wakeup jarvish" to activate', 'dim');
+                    // Auto-start phone listener on mobile
+                    if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+                        addLog('📱 Mobile detected — tap 🎤 button to enable voice', 'info');
+                    }
                 });
             }, 600);
         }
@@ -151,7 +151,6 @@ $(document).ready(function () {
         var $line = $('<div class="log-line ' + (cls||'info') + '">').text('> ' + msg);
         $log.append($line);
         $log.scrollTop($log[0].scrollHeight);
-        // keep max 80 lines
         var lines = $log.children();
         if (lines.length > 80) lines.first().remove();
     };
@@ -184,7 +183,7 @@ $(document).ready(function () {
         return 'Command processed: "' + message + '"';
     }
 
-    // ── Process command ────────────────────────────────────────────────────
+    // ── Process command (PC pe execute karo) ──────────────────────────────
     function processCommand(text) {
         text = (text || '').trim();
         if (!text) { showActive('Listening...'); return; }
@@ -204,7 +203,6 @@ $(document).ready(function () {
                 ? data.response : buildFallbackReply(text);
             showAssistantText(reply);
             window.addReceiverMsg(reply);
-            // Note: addLog for JARVIS response comes via event polling from backend
             setTimeout(showIdle, 4000);
         })
         .catch(function () {
@@ -222,13 +220,18 @@ $(document).ready(function () {
         processCommand($(this).data('cmd'));
     });
 
-    // ── Mic button ─────────────────────────────────────────────────────────
+    // ── Desktop Mic button (PC mic → Flask /api/listen) ───────────────────
     $('#MicBtn').on('click', function () {
+        // Agar phone voice listener chal raha hai to phone ka use karo
+        if (_phoneListening) {
+            window.addLog('📱 Phone voice is active — use voice or tap PhoneWakeBtn', 'info');
+            return;
+        }
         $(this).addClass('listening');
         initSiriWave();
         showActive('Listening...');
         $('#waveStatus').text('LISTENING');
-        startMicWave();                       // real mic → wave amplitude
+        startMicWave();
         window.addLog('Mic activated', 'info');
 
         fetch('/api/listen', { method: 'POST' })
@@ -271,7 +274,7 @@ $(document).ready(function () {
     $('#chatbox').on('keypress', function (e) { if (e.which === 13) sendText(); });
     $('#SendBtn').on('click', sendText);
 
-    // ── Activity Log polling — backend se live events fetch karo ─────────
+    // ── Activity Log polling ───────────────────────────────────────────────
     var _lastEventId = 0;
     function pollEvents() {
         fetch('/api/events?after=' + _lastEventId)
@@ -286,11 +289,209 @@ $(document).ready(function () {
             })
             .catch(function(){});
     }
-    // Boot ke baad poling shuru karo
     setTimeout(function(){
         pollEvents();
         setInterval(pollEvents, 1500);
     }, 2000);
+
+    // ══════════════════════════════════════════════════════════════════════
+    //  PHONE WAKE WORD + COMMAND SYSTEM
+    //  Web Speech API — phone browser mein continuous listening
+    //  "Jarvish" bolo → PC activate → command execute
+    // ══════════════════════════════════════════════════════════════════════
+
+    var _phoneListening    = false;
+    var _phoneActive       = false;   // command mode
+    var _phoneSR           = null;
+    var _phoneRestartTimer = null;
+
+    var _wakeWords = [
+        'jarvish','jarvis','jarwish','jervish','jurvish','garvish',
+        'hey jarvish','hey jarvis','ok jarvish','ok jarvis',
+        'okay jarvish','okay jarvis','wakeup jarvish','wake up jarvis'
+    ];
+    var _sleepWords = ['shutdown','bye','goodbye','so jao','band karo'];
+
+    function _containsWake(t) {
+        t = t.toLowerCase().trim();
+        return _wakeWords.some(function(w){ return t.indexOf(w) !== -1; });
+    }
+    function _containsSleep(t) {
+        t = t.toLowerCase().trim();
+        return _sleepWords.some(function(w){ return t.indexOf(w) !== -1; });
+    }
+    function _stripWake(t) {
+        t = t.toLowerCase().trim();
+        _wakeWords.forEach(function(w){
+            t = t.replace(new RegExp(w.replace(/[-\/\\^$*+?.()|[\]{}]/g,'\\$&'), 'g'), '').trim();
+        });
+        return t.trim();
+    }
+
+    // ── Phone UI helpers ───────────────────────────────────────────────────
+    function phoneSetStatus(state, msg) {
+        var $btn = $('#PhoneWakeBtn');
+        var $lbl = $('#phoneWakeLabel');
+        if (state === 'off') {
+            $btn.attr('title','Start phone voice').html('🎤').css({'background':'','box-shadow':''});
+            if ($lbl.length) $lbl.text('Tap to enable phone voice');
+        } else if (state === 'listening') {
+            $btn.attr('title','Listening — say Jarvish').html('👂').css({
+                'background':'rgba(0,212,255,0.15)',
+                'box-shadow':'0 0 12px var(--cyan)'
+            });
+            if ($lbl.length) $lbl.text('Listening for "Jarvish"...');
+            window.addLog('📱 Waiting for wake word "Jarvish"...', 'dim');
+        } else if (state === 'active') {
+            $btn.html('🔊').css({
+                'background':'rgba(255,215,0,0.15)',
+                'box-shadow':'0 0 12px #ffd700'
+            });
+            if ($lbl.length) $lbl.text(msg || 'Say your command...');
+        }
+    }
+
+    // ── Send command to PC ─────────────────────────────────────────────────
+    function phoneSendCommand(text) {
+        text = text.trim();
+        if (!text) return;
+        window.addLog('📱 ' + text, 'cmd');
+        window.addSenderMsg(text);
+        showActive('📱 ' + text);
+
+        fetch('/api/command', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: text })
+        })
+        .then(function(r){ return r.json(); })
+        .then(function(data){
+            var reply = (data && data.response) ? data.response : 'Done Sir';
+            showAssistantText(reply);
+            window.addReceiverMsg(reply);
+            phoneSetStatus('listening');
+            setTimeout(showIdle, 3500);
+        })
+        .catch(function(){
+            phoneSetStatus('listening');
+            setTimeout(showIdle, 2000);
+        });
+    }
+
+    // ── Web Speech API loop ────────────────────────────────────────────────
+    function startPhoneListener() {
+        var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SR) {
+            window.addLog('⚠️ Voice recognition not supported. Use Chrome on Android.', 'warn');
+            alert('Please use Chrome browser on Android for voice support.');
+            return;
+        }
+
+        _phoneListening = true;
+        phoneSetStatus('listening');
+
+        function makeSR() {
+            var sr = new SR();
+            sr.lang           = 'en-IN';
+            sr.continuous     = false;    // one phrase at a time — stable on mobile
+            sr.interimResults = false;
+            sr.maxAlternatives = 3;
+
+            sr.onresult = function(e) {
+                var best = '';
+                for (var i = e.resultIndex; i < e.results.length; i++) {
+                    // Pick highest confidence alternative
+                    for (var j = 0; j < e.results[i].length; j++) {
+                        if (!best || e.results[i][j].confidence > e.results[i][0].confidence) {
+                            best = e.results[i][j].transcript;
+                        }
+                    }
+                }
+                best = best.trim();
+                if (!best) return;
+                console.log('[PhoneSR] heard:', best, '| active:', _phoneActive);
+
+                if (!_phoneActive) {
+                    // ── WAKE WORD MODE ────────────────────────────────────
+                    if (_containsWake(best)) {
+                        var cmd = _stripWake(best);
+                        if (cmd && cmd.length > 2) {
+                            // Combined "Jarvish open chrome" — execute directly
+                            window.addLog('📱 Wake + Command: ' + cmd, 'success');
+                            phoneSetStatus('active', 'Executing...');
+                            fetch('/api/activate', { method: 'POST' });
+                            phoneSendCommand(cmd);
+                        } else {
+                            // Just wake word — switch to command mode
+                            _phoneActive = true;
+                            window.addLog('📱 Wake word heard! Say your command...', 'success');
+                            phoneSetStatus('active', 'Say your command Sir...');
+                            fetch('/api/activate', { method: 'POST' });
+                        }
+                    }
+                    // else: not wake word, ignore
+                } else {
+                    // ── COMMAND MODE ──────────────────────────────────────
+                    _phoneActive = false;
+                    if (_containsSleep(best)) {
+                        window.addLog('📱 Sleep received', 'dim');
+                        phoneSetStatus('listening');
+                    } else {
+                        phoneSendCommand(best);
+                    }
+                }
+            };
+
+            sr.onerror = function(e) {
+                if (e.error !== 'no-speech' && e.error !== 'aborted') {
+                    window.addLog('📱 Mic: ' + e.error, 'warn');
+                }
+            };
+
+            sr.onend = function() {
+                if (_phoneListening) {
+                    clearTimeout(_phoneRestartTimer);
+                    _phoneRestartTimer = setTimeout(function() {
+                        if (_phoneListening) {
+                            _phoneSR = makeSR();
+                            try { _phoneSR.start(); } catch(ex) {
+                                window.addLog('📱 Restart error: ' + ex.message, 'warn');
+                            }
+                        }
+                    }, 250);
+                }
+            };
+
+            return sr;
+        }
+
+        _phoneSR = makeSR();
+        try {
+            _phoneSR.start();
+        } catch(ex) {
+            window.addLog('📱 Cannot start mic: ' + ex.message, 'warn');
+            _phoneListening = false;
+            phoneSetStatus('off');
+        }
+    }
+
+    function stopPhoneListener() {
+        _phoneListening = false;
+        _phoneActive    = false;
+        clearTimeout(_phoneRestartTimer);
+        if (_phoneSR) { try { _phoneSR.abort(); } catch(ex) {} _phoneSR = null; }
+        phoneSetStatus('off');
+        window.addLog('📱 Phone voice disabled', 'dim');
+    }
+
+    // ── PhoneWakeBtn toggle ────────────────────────────────────────────────
+    $(document).on('click', '#PhoneWakeBtn', function() {
+        if (_phoneListening) {
+            stopPhoneListener();
+        } else {
+            startPhoneListener();
+        }
+    });
 
     // ── Status poll ────────────────────────────────────────────────────────
     setInterval(function () {
@@ -307,7 +508,7 @@ $(document).ready(function () {
             }).catch(function(){});
     }, 3000);
 
-    // keyboard shortcut
+    // Keyboard shortcut
     document.addEventListener('keydown', function (e) {
         if (e.ctrlKey && e.altKey && e.key.toLowerCase() === 'j') {
             e.preventDefault(); processCommand('hello');
