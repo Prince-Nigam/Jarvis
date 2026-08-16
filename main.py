@@ -250,7 +250,7 @@ def start():
     # Sirf user jab "wakeup jarvish" bolega tabhi window + TTS trigger hoga
     # (user ka requirement: bina kuch kare sirf bol ke activate)
 
-    app.run(host="127.0.0.1", port=port, debug=False, threaded=True)
+    app.run(host="0.0.0.0", port=port, debug=False, threaded=True)
 
 if __name__ == "__main__":
     start()
